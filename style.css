@@ -30,35 +30,44 @@ h1 {
 /* --- Progress Bar Styles --- */
 #progress-bar-container {
     width: 100%;
-    height: 12px; /* Slightly thicker */
-    background-color: #22303f; /* Darker track for more contrast */
+    height: 12px;
+    background-color: #22303f;
     border: 1px solid #46627f;
-    border-radius: 6px; /* Half of height for pill shape */
-    margin-bottom: 20px; /* Space below the progress bar */
-    overflow: hidden; /* Ensures the fill doesn't overflow rounded corners */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); /* Subtle inner shadow */
+    border-radius: 6px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
 }
 
 #progress-bar-fill {
-    width: 0%; /* Start empty */
+    width: 0%;
     height: 100%;
-    background-color: #1abc9c; /* Turquoise, same as h1 and button */
-    border-radius: 6px; /* Match container's radius for a smooth look */
-    transition: width 0.15s ease-out; /* Smooth transition for width changes */
+    background-color: #1abc9c;
+    border-radius: 6px;
+    transition: width 0.15s ease-out;
 }
 
 #passage-container {
     margin-bottom: 20px;
     background-color: #2c3e50;
-    padding: 20px;
+    padding: 20px; /* Overall padding for the container */
     border-radius: 5px;
     border: 1px solid #46627f;
-    min-height: 120px;
-    line-height: 1.8;
-    font-size: 1.3em;
+    /* min-height: 120px; */ /* Removed, passage-display controls its height */
+    line-height: 1.8; /* Default line height for text inside */
+    font-size: 1.3em; /* Default font size for text inside */
     text-align: left;
     letter-spacing: 1px;
-    user-select: none; /* Prevent text selection during typing test */
+    user-select: none;
+}
+
+#passage-display {
+    height: 110px; /* ADJUSTABLE: Aim for 3-4 lines. (1.3em * 1.8 line-height * ~3 lines) */
+    overflow-y: hidden; /* Hides overflowing text; we scroll programmatically */
+    position: relative; /* For potential future absolute positioning of children or overlays */
+    padding: 5px 0; /* Optional: Small internal vertical padding */
+    /* Ensure text inherits properties like line-height, font-size, letter-spacing from #passage-container */
+    /* If text looks misaligned, explicitly set text-align: left; here too. */
 }
 
 #passage-display span {
