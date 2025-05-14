@@ -19,6 +19,7 @@ body {
     text-align: center;
     width: 90%;
     max-width: 800px;
+    position: relative; /* For positioning modal if it were absolutely positioned within app-container */
 }
 
 h1 {
@@ -50,21 +51,21 @@ h1 {
 #passage-container {
     margin-bottom: 20px;
     background-color: #2c3e50;
-    padding: 20px; /* Overall padding for the container */
+    padding: 20px;
     border-radius: 5px;
     border: 1px solid #46627f;
-    line-height: 1.8; /* Default line height for text inside */
-    font-size: 1.3em; /* Default font size for text inside */
+    line-height: 1.8;
+    font-size: 1.3em;
     text-align: left;
     letter-spacing: 1px;
     user-select: none;
 }
 
 #passage-display {
-    height: 110px; /* ADJUSTABLE: Aim for 3-4 lines. (1.3em * 1.8 line-height * ~3 lines) */
-    overflow-y: hidden; /* Hides overflowing text; we scroll programmatically */
+    height: 110px;
+    overflow-y: hidden;
     position: relative;
-    padding: 5px 0; /* Optional: Small internal vertical padding */
+    padding: 5px 0;
 }
 
 #passage-display span {
@@ -72,7 +73,7 @@ h1 {
 }
 
 #passage-display span.correct {
-    color: #2ecc71; /* Bright Green */
+    color: #2ecc71;
 }
 
 #passage-display span.incorrect {
@@ -90,13 +91,7 @@ h1 {
     border-radius: 3px;
 }
 
-/* NEW: Style for the current word being typed */
-#passage-display span.current-word {
-    background-color: #4a6075; /* A slightly lighter shade than passage-container bg */
-    /* Make sure this is subtle and doesn't clash with .correct, .incorrect, or .current */
-    /* For example, if .current has a strong background, it should still be visible on top of this */
-}
-
+/* Removed .current-word style as per user decision */
 
 #typing-input {
     width: calc(100% - 22px);
@@ -168,4 +163,100 @@ button:disabled {
 
 .shake-error {
   animation: shake 0.3s ease-in-out;
+}
+
+/* --- NEW: Modal Styles --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex; /* Used for initial state before 'active' is added by JS */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    /* Delay visibility transition until after opacity has finished */
+    transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease; /* Only opacity needs to transition back smoothly */
+}
+
+.modal-content {
+    background-color: #34495e;
+    padding: 30px 40px;
+    border-radius: 10px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    position: relative;
+    width: 90%;
+    max-width: 500px;
+    color: #ecf0f1;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.active .modal-content {
+    transform: scale(1);
+}
+
+.modal-content h2 {
+    color: #1abc9c;
+    margin-top: 0;
+    margin-bottom: 25px;
+}
+
+.modal-close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 2.5em;
+    color: #7f8c8d;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+.modal-close-button:hover {
+    color: #ecf0f1;
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+    text-align: left;
+}
+
+.result-item {
+    background-color: #2c3e50;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #46627f;
+}
+
+.result-label {
+    display: block;
+    font-size: 0.9em;
+    color: #bdc3c7;
+    margin-bottom: 5px;
+}
+
+.result-value {
+    font-size: 1.4em;
+    font-weight: bold;
+    color: #ecf0f1;
+}
+
+#modal-play-again-button {
+    font-size: 1.1em;
 }

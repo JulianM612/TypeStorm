@@ -29,7 +29,44 @@
 
         <button id="start-button">Start New Test</button>
         <button id="bot-mode-button">Activate Bot</button>
-    </div>
+
+        <!-- NEW: Results Modal HTML -->
+        <div id="results-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <button class="modal-close-button">×</button>
+                <h2>Test Results</h2>
+                <div class="results-grid">
+                    <div class="result-item">
+                        <span class="result-label">Net WPM:</span>
+                        <span id="modal-wpm" class="result-value">0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Accuracy:</span>
+                        <span id="modal-accuracy" class="result-value">0</span>%
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Time Taken:</span>
+                        <span id="modal-time" class="result-value">0s</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Gross WPM:</span>
+                        <span id="modal-gross-wpm" class="result-value">0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Characters:</span>
+                        <span id="modal-chars" class="result-value">0/0</span> <!-- Correct/Total -->
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Errors:</span>
+                        <span id="modal-errors" class="result-value">0</span>
+                    </div>
+                </div>
+                <button id="modal-play-again-button">Play Again</button>
+            </div>
+        </div>
+        <!-- END NEW: Results Modal HTML -->
+
+    </div> <!-- Closing app-container -->
 
     <script src="script.js"></script>
 </body>
