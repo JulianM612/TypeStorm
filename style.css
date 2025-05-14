@@ -1,7 +1,42 @@
+/* CSS Custom Properties (Variables) */
+:root {
+    --primary-color: #1abc9c;
+    --primary-darker: #16a085;
+    --background-dark: #2c3e50;
+    --background-medium: #34495e;
+    --background-light-opaque: #ecf0f1; /* For backgrounds like input */
+    --text-color-light: #ecf0f1;
+    --text-color-dark-on-light-bg: #2c3e50; /* For text on light backgrounds */
+    --text-color-muted: #bdc3c7;
+    --border-color-dark: #22303f; /* For progress bar container bg */
+    --border-color-medium: #46627f;
+    --border-color-light: #7f8c8d;
+    --error-text-color: #ffffff; /* Text on error background */
+    --error-bg-color: #e74c3c;
+    --correct-color: #2ecc71;
+    --warning-bg-color: #f39c12; /* Current char background */
+    --warning-text-color: #2c3e50; /* Text on warning background */
+    --disabled-bg-color: #95a5a6;
+    --disabled-text-color: #dfe6e9;
+
+    --border-radius-small: 3px;
+    --border-radius-medium: 5px;
+    --border-radius-large: 10px;
+    --border-radius-round: 28px; /* For toggle */
+
+    --font-family-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+    --modal-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+    --container-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    --button-shadow-hover: 0 2px 5px rgba(0,0,0,0.2);
+    --button-shadow-active: 0 1px 3px rgba(0,0,0,0.2);
+    --input-focus-shadow: 0 0 8px rgba(26, 188, 156, 0.4); /* Assuming #1abc9c is the base for this RGBA */
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #2c3e50; /* Dark blue-grey */
-    color: #ecf0f1; /* Light grey/white */
+    font-family: var(--font-family-main);
+    background-color: var(--background-dark);
+    color: var(--text-color-light);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -12,10 +47,10 @@ body {
 }
 
 #app-container {
-    background-color: #34495e; /* Slightly lighter blue-grey */
+    background-color: var(--background-medium);
     padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--container-shadow);
     text-align: center;
     width: 90%;
     max-width: 800px;
@@ -29,20 +64,20 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(44, 62, 80, 0.85); 
+    background-color: rgba(var(--background-dark-rgb, 44, 62, 80), 0.85); /* Assuming #2c3e50 -> rgb(44,62,80) */
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 500; 
-    border-radius: 10px; 
+    border-radius: var(--border-radius-large);
 }
 
 #countdown-message {
     font-size: 6em;
-    color: #1abc9c; 
+    color: var(--primary-color);
     font-weight: bold;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    animation: countdown-pulse 1s infinite ease-in-out;
+    animation: countdown-pulse 1s infinite ease-in-out; /* Consider var for animation duration if used elsewhere */
 }
 
 @keyframes countdown-pulse {
@@ -52,7 +87,7 @@ body {
 /* End Countdown Styles */
 
 h1 {
-    color: #1abc9c; 
+    color: var(--primary-color);
     margin-bottom: 25px;
     font-size: 2.5em;
 }
@@ -60,9 +95,9 @@ h1 {
 #progress-bar-container {
     width: 100%;
     height: 12px;
-    background-color: #22303f;
-    border: 1px solid #46627f;
-    border-radius: 6px;
+    background-color: var(--border-color-dark);
+    border: 1px solid var(--border-color-medium);
+    border-radius: var(--border-radius-medium); /* Or a new var if 6px is distinct */
     margin-bottom: 20px;
     overflow: hidden;
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
@@ -71,8 +106,8 @@ h1 {
 #progress-bar-fill {
     width: 0%;
     height: 100%;
-    background-color: #1abc9c;
-    border-radius: 6px;
+    background-color: var(--primary-color);
+    border-radius: var(--border-radius-medium); /* Or a new var if 6px is distinct */
     transition: width 0.15s ease-out;
 }
 

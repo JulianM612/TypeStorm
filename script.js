@@ -141,9 +141,14 @@ const CHARS_PER_WORD = 5;
 const BOT_TYPING_INTERVAL_MS = 50;
 const COUNTDOWN_SECONDS = 3; 
 const API_NINJAS_URL = 'https://api.api-ninjas.com/v1/quotes';
-const API_NINJAS_KEY = 'k3SjrLZIe88JPoDPvrFbRQ==NiXjNzu4cbJktQ5C'; 
+const API_NINJAS_KEY = 'k3SjrLZIe88JPoDPvrFbRQ==NiXjNzu4cbJktQ5C'; // Replace with your actual key if needed
 
-// --- Function to load passages from API-Ninjas ---
+// UI Behavior Constants
+const SCROLL_TARGET_OFFSET_RATIO = 0.33; // For scrolling passage display to keep current line in view
+const SCROLL_VIEWPORT_BUFFER_RATIO = 0.5; // Buffer for scroll trigger based on character height
+const SHAKE_ERROR_ANIMATION_DURATION_MS = 300; // Duration for the error shake animation
+
+// --- API & Passage Loading ---
 async function loadPassageFromAPI() {
     console.log("Loading passage from API..."); 
     if (!passageDisplay || !typingInput || !startButton) {
@@ -202,6 +207,15 @@ function updateProgressBar() {
     progressBarFill.style.width = `${progressPercent}%`;
 }
 
+// --- Utility Functions ---
+function calculateWPM(charCount, timeSeconds, charsPerWord = CHARS_PER_WORD) {
+    if (timeSeconds <= 0 || charCount <= 0) return 0;
+    const minutes = timeSeconds / 60;
+    if (minutes <= 0) return 0; 
+    return Math.round((charCount / charsPerWord) / minutes);
+}
+
+
 // --- Core Functions ---
 function formatPassageForDisplay(passageText) {
     if (!passageDisplay) { return; }
@@ -243,10 +257,10 @@ function scrollPassageDisplay() {
     if (!currentActualSpan) { return; }
     const displayRect = passageDisplay.getBoundingClientRect();
     const spanRect = currentActualSpan.getBoundingClientRect(); 
-    const targetOffsetFromTop = displayRect.height * 0.33; 
+    const targetOffsetFromTop = displayRect.height * SCROLL_TARGET_OFFSET_RATIO;
     const desiredScrollTop = passageDisplay.scrollTop + (spanRect.top - displayRect.top) - targetOffsetFromTop;
     const currentSpanTopInDisplay = spanRect.top - displayRect.top; 
-    const buffer = spanRect.height * 0.5; 
+    const buffer = spanRect.height * SCROLL_VIEWPORT_BUFFER_RATIO;
     if (currentSpanTopInDisplay > (displayRect.height - spanRect.height - buffer) || currentSpanTopInDisplay < buffer) {
         if (passageDisplay.scrollTo) passageDisplay.scrollTo({ top: desiredScrollTop, behavior: 'smooth' });
         else passageDisplay.scrollTop = desiredScrollTop; 
@@ -410,7 +424,7 @@ function processTypedCharacter(typedChar, isBackspace = false) {
             mistakeCount++;
             if (passageContainer && !passageContainer.classList.contains('shake-error')) {
                 passageContainer.classList.add('shake-error');
-                setTimeout(() => { if(passageContainer) passageContainer.classList.remove('shake-error'); }, 300);
+                setTimeout(() => { if(passageContainer) passageContainer.classList.remove('shake-error'); }, SHAKE_ERROR_ANIMATION_DURATION_MS);
             }
         }
         currentCharIndex++;
@@ -470,16 +484,8 @@ function startTimer() {
         if (!gameActive) { clearInterval(timerInterval); return; }
         const elapsedTimeSeconds = Math.floor((new Date() - startTime) / 1000);
         if(timerDisplay) timerDisplay.textContent = `${elapsedTimeSeconds}s`;
-        if (correctCharCount > 0) {
-            const minutes = elapsedTimeSeconds / 60;
-            if (minutes > 0) {
-                if(wpmDisplay) wpmDisplay.textContent = Math.round((correctCharCount / CHARS_PER_WORD) / minutes);
-            } else {
-                if (elapsedTimeSeconds > 0) {
-                    if(wpmDisplay) wpmDisplay.textContent = Math.round((correctCharCount / CHARS_PER_WORD) / (elapsedTimeSeconds / 60));
-                } else { if(wpmDisplay) wpmDisplay.textContent = '0'; }
-            }
-        } else if (elapsedTimeSeconds > 0) { if(wpmDisplay) wpmDisplay.textContent = '0'; }
+        
+        if(wpmDisplay) wpmDisplay.textContent = calculateWPM(correctCharCount, elapsedTimeSeconds);
     }, 1000);
 }
 
@@ -489,27 +495,19 @@ function updateLiveHUD() {
     } else { if(accuracyDisplay) accuracyDisplay.textContent = '0'; }
 }
 
-function openResultsModal() {
+function openResultsModal(finalNetWPM, finalAccuracy, finalTimeSeconds, finalTypedCharCount, finalCorrectCharCount, finalMistakeCount) {
     if (!resultsModal) return;
-    const finalNetWPM = wpmDisplay ? wpmDisplay.textContent : '0';
-    const finalAccuracy = accuracyDisplay? accuracyDisplay.textContent : '0';
-    const finalTime = timerDisplay ? timerDisplay.textContent : '0s';
-    let grossWPM = 0;
-    if (startTime) {
-        const timeTakenSeconds = (new Date() - startTime) / 1000;
-        const timeTakenMinutes = timeTakenSeconds / 60;
-        if (timeTakenMinutes > 0 && typedCharCount > 0) {
-            grossWPM = Math.round((typedCharCount / CHARS_PER_WORD) / timeTakenMinutes);
-        } else if (typedCharCount > 0 && timeTakenSeconds > 0) {
-             grossWPM = Math.round((typedCharCount / CHARS_PER_WORD) / (timeTakenSeconds/60));
-        }
-    }
+
+    const grossWPM = calculateWPM(finalTypedCharCount, finalTimeSeconds);
+    const finalTimeDisplay = `${finalTimeSeconds.toFixed(2)}s`;
+
     if(modalWpmDisplay) modalWpmDisplay.textContent = finalNetWPM;
     if(modalAccuracyDisplay) modalAccuracyDisplay.textContent = finalAccuracy;
-    if(modalTimeDisplay) modalTimeDisplay.textContent = finalTime;
+    if(modalTimeDisplay) modalTimeDisplay.textContent = finalTimeDisplay;
     if(modalGrossWpmDisplay) modalGrossWpmDisplay.textContent = grossWPM;
-    if(modalCharsDisplay) modalCharsDisplay.textContent = `${correctCharCount}/${typedCharCount}`;
-    if(modalErrorsDisplay) modalErrorsDisplay.textContent = mistakeCount;
+    if(modalCharsDisplay) modalCharsDisplay.textContent = `${finalCorrectCharCount}/${finalTypedCharCount}`;
+    if(modalErrorsDisplay) modalErrorsDisplay.textContent = finalMistakeCount;
+
     resultsModal.style.display = 'flex';
     setTimeout(() => { resultsModal.classList.add('active'); }, 10);
 }
@@ -527,13 +525,9 @@ function endGame() {
     updateProgressBar();
     const endTime = new Date();
     const timeTakenSeconds = startTime ? (endTime - startTime) / 1000 : 0;
-    const timeTakenMinutes = timeTakenSeconds / 60;
-    let finalNetWPM = 0;
-    if (timeTakenMinutes > 0 && correctCharCount > 0) {
-        finalNetWPM = Math.round((correctCharCount / CHARS_PER_WORD) / timeTakenMinutes);
-    } else if (correctCharCount > 0 && timeTakenSeconds > 0) {
-        finalNetWPM = Math.round((correctCharCount / CHARS_PER_WORD) / (timeTakenSeconds/60));
-    }
+    
+    let finalNetWPM = calculateWPM(correctCharCount, timeTakenSeconds);
+
     if(wpmDisplay) wpmDisplay.textContent = finalNetWPM;
     let finalAccuracyVal = 0;
     if (typedCharCount > 0) { finalAccuracyVal = Math.round((correctCharCount / typedCharCount) * 100); }
@@ -550,7 +544,14 @@ function endGame() {
     }
     if (botActive) { deactivateBotMode(true); }
     gameActive = false;
-    openResultsModal();
+    openResultsModal(
+        finalNetWPM, 
+        Math.max(0, finalAccuracyVal), 
+        timeTakenSeconds, 
+        typedCharCount, 
+        correctCharCount, 
+        mistakeCount
+    );
 }
 
 async function activateBotMode() {
