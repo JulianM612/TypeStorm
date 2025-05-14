@@ -62,7 +62,7 @@ const Config = {
     BOT_TYPING_INTERVAL_MS: 50,
     COUNTDOWN_SECONDS: 3,
     API_NINJAS_URL: 'https://api.api-ninjas.com/v1/quotes',
-    API_NINJAS_KEY: 'k3SjrLZIe88JPoDPvrFbRQ==NiXjNzu4cbJktQ5C', // Replace if needed
+    API_NINJAS_KEY: 'k3SjrLZIe88JPoDPvrFbRQ==NiXjNzu4cbJktQ5C',
     UI: {
         SCROLL_TARGET_OFFSET_RATIO: 0.33,
         SCROLL_VIEWPORT_BUFFER_RATIO: 0.5,
@@ -72,7 +72,6 @@ const Config = {
 
 // --- Default Fallback Passage ---
 const defaultFallbackPassage = "The quick brown fox jumps over the lazy dog. This is a default passage if the API fails to load.";
-
 
 // --- AUDIO MANAGER ---
 const AudioManager = {
@@ -229,7 +228,7 @@ const UIManager = {
         DOMElements.passageDisplay.style.justifyContent = 'flex-start';
         DOMElements.passageDisplay.style.alignItems = 'flex-start';
         gameState.passageCharsSpans = [];
-        gameState.passageWords = []; // Still here, might be simplified later
+        gameState.passageWords = [];
         const words = passageText.split(/(\s+)/);
         words.forEach(wordOrSpace => {
             if (wordOrSpace.match(/\s+/)) {
@@ -260,7 +259,7 @@ const UIManager = {
     scrollPassageDisplay: function() {
         if (!gameState.gameActive || gameState.currentCharIndex >= gameState.passageCharsSpans.length || !DOMElements.passageDisplay || gameState.passageCharsSpans.length === 0) return;
         const currentActualSpan = gameState.passageCharsSpans[gameState.currentCharIndex];
-        if (!currentActualSpan || !currentActualSpan.getBoundingClientRect) { return; } // Added guard
+        if (!currentActualSpan || !currentActualSpan.getBoundingClientRect) { return; }
         const displayRect = DOMElements.passageDisplay.getBoundingClientRect();
         const spanRect = currentActualSpan.getBoundingClientRect();
         const targetOffsetFromTop = displayRect.height * Config.UI.SCROLL_TARGET_OFFSET_RATIO;
@@ -277,7 +276,6 @@ const UIManager = {
         if (gameState.typedCharCount > 0) {
             if(DOMElements.accuracyDisplay) DOMElements.accuracyDisplay.textContent = `${Math.max(0, Math.round((gameState.correctCharCount / gameState.typedCharCount) * 100))}`;
         } else { if(DOMElements.accuracyDisplay) DOMElements.accuracyDisplay.textContent = '0'; }
-        // WPM in HUD is updated by GameLogic.startTimer
     },
 
     openResultsModal: function(finalNetWPM, finalAccuracy, finalTimeSeconds, finalTypedCharCount, finalCorrectCharCount, finalMistakeCount) {
@@ -326,7 +324,7 @@ const UIManager = {
             DOMElements.countdownOverlay.style.display = 'flex';
             let count = Config.COUNTDOWN_SECONDS;
 
-            const updateAndPlayCountdownTick = (number) => { // Arrow function for `this` if it were used
+            const updateAndPlayCountdownTick = (number) => {
                 DOMElements.countdownMessage.textContent = number;
                 if (AudioManager.audioUnlocked) {
                     AudioManager.play('countdownTick', true);
@@ -450,8 +448,8 @@ const GameLogic = {
 
             if (currentSpan) {
                  currentSpan.classList.remove('current');
-            } else if (prevSpan && gameState.currentCharIndex === gameState.currentPassageText.length) { // End of passage
-                 prevSpan.classList.remove('current'); // It was the last char, now it's not current
+            } else if (prevSpan && gameState.currentCharIndex === gameState.currentPassageText.length) {
+                 prevSpan.classList.remove('current');
             }
 
             gameState.currentCharIndex--;
@@ -512,7 +510,7 @@ const GameLogic = {
 
         if (DOMElements.typingInput && DOMElements.typingInput.disabled || gameState.botActive) return;
         if (event.key === "Tab" || event.key === "Shift" || event.key === "Control" || event.key === "Alt" || event.key === "Meta") return;
-        if (event.key !== "Backspace" && event.key.length > 1) return; // Allow only single chars or backspace
+        if (event.key !== "Backspace" && event.key.length > 1) return;
 
         if (!gameState.gameActive && event.key !== "Backspace" && event.key.length === 1) {
             gameState.gameActive = true;
@@ -532,7 +530,6 @@ const GameLogic = {
             this.processTypedCharacter(event.key, false);
             if(DOMElements.typingInput) DOMElements.typingInput.value = '';
         } else if (gameState.currentCharIndex >= gameState.currentPassageText.length && event.key !== "Backspace") {
-            // Prevent typing past the end
             if(DOMElements.typingInput) DOMElements.typingInput.value = '';
             event.preventDefault();
         }
@@ -592,7 +589,7 @@ const GameLogic = {
 const BotManager = {
     activate: async function() {
         if (gameState.gameActive || gameState.botActive || gameState.countdownInProgress) return;
-        await GameLogic.reset(false); // No countdown for bot
+        await GameLogic.reset(false);
         gameState.gameActive = true;
         gameState.botActive = true;
         if(DOMElements.typingInput) DOMElements.typingInput.disabled = true;
@@ -634,79 +631,88 @@ const BotManager = {
     }
 };
 
-// --- Event Listeners ---
-if(DOMElements.startButton) {
-    DOMElements.startButton.addEventListener('click', () => {
-        AudioManager.unlock();
-        GameLogic.startProcedure();
-    });
-}
-if(DOMElements.typingInput) {
-    DOMElements.typingInput.addEventListener('keydown', (event) => {
-        AudioManager.unlock();
-        GameLogic.handleKeyDown(event);
-    });
-}
-if (DOMElements.botModeButton) {
-    DOMElements.botModeButton.addEventListener('click', () => {
-        AudioManager.unlock();
-        BotManager.activate();
-    });
-}
-if (DOMElements.resultsModal.closeButton) {
-    DOMElements.resultsModal.closeButton.addEventListener('click', UIManager.closeResultsModal);
-}
-if (DOMElements.resultsModal.playAgainButton) {
-    DOMElements.resultsModal.playAgainButton.addEventListener('click', () => {
-        AudioManager.unlock();
-        UIManager.closeResultsModal();
-        GameLogic.startProcedure();
-    });
-}
+// --- APPLICATION INITIALIZATION ---
+function initializeApp() {
+    // Initial setup calls
+    AudioManager.load();
+    SettingsManager.load();
+    UIManager.initialAppSetup();
 
-if (DOMElements.settingsModal.settingsButton) {
-    DOMElements.settingsModal.settingsButton.addEventListener('click', () => {
-        AudioManager.unlock();
-        UIManager.openSettingsModal();
-    });
-}
-if (DOMElements.settingsModal.closeButton) {
-    DOMElements.settingsModal.closeButton.addEventListener('click', UIManager.closeSettingsModal);
-}
-if (DOMElements.settingsModal.modal) {
-    DOMElements.settingsModal.modal.addEventListener('click', (event) => {
-        if (event.target === DOMElements.settingsModal.modal) UIManager.closeSettingsModal();
-    });
-}
-if (DOMElements.settingsModal.allowBackspaceToggle) {
-    DOMElements.settingsModal.allowBackspaceToggle.addEventListener('change', (event) => {
-        SettingsManager.updateBackspaceSetting(event.target.checked);
-    });
-}
-if (DOMElements.settingsModal.saveButton) { // "Close" button for settings
-    DOMElements.settingsModal.saveButton.addEventListener('click', () => {
-        UIManager.closeSettingsModal();
-    });
-}
-
-window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-        if (DOMElements.resultsModal.modal && DOMElements.resultsModal.modal.classList.contains('active')) {
-            UIManager.closeResultsModal();
-        } else if (DOMElements.settingsModal.modal && DOMElements.settingsModal.modal.classList.contains('active')) {
-            UIManager.closeSettingsModal();
-        }
+    // Event Listeners
+    if(DOMElements.startButton) {
+        DOMElements.startButton.addEventListener('click', () => {
+            AudioManager.unlock();
+            GameLogic.startProcedure();
+        });
     }
-});
-if (DOMElements.resultsModal.modal) {
-    DOMElements.resultsModal.modal.addEventListener('click', (event) => {
-        if (event.target === DOMElements.resultsModal.modal) UIManager.closeResultsModal();
+    if(DOMElements.typingInput) {
+        // Unlock audio on first keydown in the input field as well
+        DOMElements.typingInput.addEventListener('keydown', (event) => {
+            AudioManager.unlock();
+            GameLogic.handleKeyDown(event);
+        });
+    }
+    if (DOMElements.botModeButton) {
+        DOMElements.botModeButton.addEventListener('click', () => {
+            AudioManager.unlock();
+            BotManager.activate();
+        });
+    }
+    if (DOMElements.resultsModal.closeButton) {
+        DOMElements.resultsModal.closeButton.addEventListener('click', UIManager.closeResultsModal);
+    }
+    if (DOMElements.resultsModal.playAgainButton) {
+        DOMElements.resultsModal.playAgainButton.addEventListener('click', () => {
+            AudioManager.unlock();
+            UIManager.closeResultsModal();
+            GameLogic.startProcedure();
+        });
+    }
+
+    if (DOMElements.settingsModal.settingsButton) {
+        DOMElements.settingsModal.settingsButton.addEventListener('click', () => {
+            AudioManager.unlock(); // Unlock audio if settings opened first
+            UIManager.openSettingsModal();
+        });
+    }
+    if (DOMElements.settingsModal.closeButton) {
+        DOMElements.settingsModal.closeButton.addEventListener('click', UIManager.closeSettingsModal);
+    }
+    if (DOMElements.settingsModal.modal) {
+        DOMElements.settingsModal.modal.addEventListener('click', (event) => {
+            if (event.target === DOMElements.settingsModal.modal) UIManager.closeSettingsModal();
+        });
+    }
+    if (DOMElements.settingsModal.allowBackspaceToggle) {
+        DOMElements.settingsModal.allowBackspaceToggle.addEventListener('change', (event) => {
+            SettingsManager.updateBackspaceSetting(event.target.checked);
+        });
+    }
+    if (DOMElements.settingsModal.saveButton) {
+        DOMElements.settingsModal.saveButton.addEventListener('click', () => {
+            UIManager.closeSettingsModal();
+        });
+    }
+
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            if (DOMElements.resultsModal.modal && DOMElements.resultsModal.modal.classList.contains('active')) {
+                UIManager.closeResultsModal();
+            } else if (DOMElements.settingsModal.modal && DOMElements.settingsModal.modal.classList.contains('active')) {
+                UIManager.closeSettingsModal();
+            }
+        }
     });
+    if (DOMElements.resultsModal.modal) {
+        DOMElements.resultsModal.modal.addEventListener('click', (event) => {
+            if (event.target === DOMElements.resultsModal.modal) UIManager.closeResultsModal();
+        });
+    }
+
+    console.log("TypeStorm application initialized. Click 'Start New Test' to begin.");
 }
 
-// --- Initialization ---
-AudioManager.load();
-SettingsManager.load();
-UIManager.initialAppSetup();
-console.log("TypeStorm application initialized. Click 'Start New Test' to begin.");
+// --- START THE APP ---
+document.addEventListener('DOMContentLoaded', initializeApp);
+
 // --- END OF FILE script.js ---
