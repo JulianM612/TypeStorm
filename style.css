@@ -19,7 +19,7 @@ body {
     text-align: center;
     width: 90%;
     max-width: 800px;
-    position: relative; /* For positioning modal if it were absolutely positioned within app-container */
+    position: relative; 
 }
 
 h1 {
@@ -28,7 +28,6 @@ h1 {
     font-size: 2.5em;
 }
 
-/* --- Progress Bar Styles --- */
 #progress-bar-container {
     width: 100%;
     height: 12px;
@@ -57,19 +56,35 @@ h1 {
     line-height: 1.8;
     font-size: 1.3em;
     text-align: left;
-    letter-spacing: 1px;
     user-select: none;
+    /* letter-spacing: 1px; /* Consider re-adding if desired, now that wrapping is better */
 }
 
 #passage-display {
     height: 110px;
-    overflow-y: hidden;
+    overflow-y: hidden; 
     position: relative;
     padding: 5px 0;
+    display: flex; 
+    flex-wrap: wrap; 
+    /* align-items: flex-start; /* Should be handled by JS for text, center for loader */
+    /* justify-content: flex-start; /* Should be handled by JS for text, center for loader */
 }
 
-#passage-display span {
+/* Styling for the new word and space containers */
+#passage-display .passage-word {
+    display: inline-flex; /* Allows char spans within to line up, acts like inline for wrapping */
+    /* margin-right: 0.25em; /* Optional: if you want a bit more space than a natural space char */
+}
+#passage-display .passage-space {
+    display: inline-block; /* Ensures spaces take up their width and contribute to wrapping */
+    white-space: pre;      /* Preserves the spaces, especially important for multiple   */
+}
+
+
+#passage-display span:not(.passage-word):not(.passage-space) { /* Target individual character spans */
     transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
+    /* display: inline-block; /* Might not be needed if word containers handle layout */
 }
 
 #passage-display span.correct {
@@ -87,21 +102,21 @@ h1 {
 #passage-display span.current {
     background-color: #f39c12;
     color: #2c3e50;
-    padding: 1px 3px; /* Keep existing padding for background */
+    padding: 1px 3px; 
     border-radius: 3px;
-    position: relative; /* For positioning the pseudo-element caret */
+    /* position: relative; /* Only needed if ::before was used */
 }
 
-/* NEW: Blinking caret for the current character */
+/* REMOVED: Blinking caret for the current character */
+/*
 #passage-display span.current::before {
     content: '';
     position: absolute;
-    /* Adjust left position if padding on span.current changes */
-    left: -1px; /* Position to the left, adjust based on font/padding */
+    left: -1px; 
     top: 10%;
     height: 80%;
     width: 2px;
-    background-color: #ecf0f1; /* Caret color */
+    background-color: #ecf0f1; 
     animation: blink-caret 1s step-end infinite;
     border-radius: 1px;
 }
@@ -110,6 +125,7 @@ h1 {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
 }
+*/
 
 
 #typing-input {
@@ -122,10 +138,9 @@ h1 {
     background-color: #ecf0f1;
     color: #2c3e50;
     box-sizing: border-box;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Added for focus transition */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease; 
 }
 
-/* NEW: Enhanced input focus style */
 #typing-input:focus {
     outline: none;
     border-color: #1abc9c;
@@ -164,29 +179,27 @@ button {
     font-size: 1.1em;
     border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease; /* Added box-shadow transition */
+    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease; 
     margin: 5px;
 }
 
-/* MODIFIED: Button hover and active states */
 button:hover {
     background-color: #16a085;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Added subtle shadow */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2); 
 }
 
 button:active {
     transform: translateY(1px);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Slightly reduce shadow on press */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2); 
 }
 
 button:disabled {
     background-color: #95a5a6;
     color: #dfe6e9;
     cursor: not-allowed;
-    box-shadow: none; /* Ensure disabled buttons don't have shadow */
+    box-shadow: none; 
 }
 
-/* Shake Animation for Errors */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
@@ -197,7 +210,6 @@ button:disabled {
   animation: shake 0.3s ease-in-out;
 }
 
-/* --- NEW: Modal Styles --- */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -205,20 +217,19 @@ button:disabled {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.7);
-    display: flex; /* Used for initial state before 'active' is added by JS */
+    display: flex; 
     justify-content: center;
     align-items: center;
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    /* Delay visibility transition until after opacity has finished */
     transition: opacity 0.3s ease, visibility 0s linear 0.3s;
 }
 
 .modal-overlay.active {
     opacity: 1;
     visibility: visible;
-    transition: opacity 0.3s ease; /* Only opacity needs to transition back smoothly */
+    transition: opacity 0.3s ease; 
 }
 
 .modal-content {
@@ -291,4 +302,33 @@ button:disabled {
 
 #modal-play-again-button {
     font-size: 1.1em;
+}
+
+.loader-container { 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%; 
+}
+
+.loader {
+    border: 5px solid #22303f; 
+    border-top: 5px solid #1abc9c; 
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px; 
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+#passage-display em { 
+    font-size: 0.9em;
+    color: #bdc3c7;
 }

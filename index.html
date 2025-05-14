@@ -16,21 +16,21 @@
 
         <div id="passage-container">
             <div id="passage-display">
-                <!-- Text passage will appear here -->
+                <!-- Text passage will appear here, or loader -->
             </div>
             <input type="text" id="typing-input" placeholder="Start typing here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <div id="hud">
-            <div class="metric">WPM: <span id="wpm-display">0</span></div>
-            <div class="metric">Accuracy: <span id="accuracy-display">0</span>%</div>
-            <div class="metric">Time: <span id="timer-display">0s</span></div>
+            <div class="metric">WPM: <span id="wpm-display" aria-live="polite">0</span></div>
+            <div class="metric">Accuracy: <span id="accuracy-display" aria-live="polite">0</span>%</div>
+            <div class="metric">Time: <span id="timer-display" aria-live="polite">0s</span></div>
         </div>
 
         <button id="start-button">Start New Test</button>
         <button id="bot-mode-button">Activate Bot</button>
 
-        <!-- NEW: Results Modal HTML -->
+        <!-- Results Modal HTML -->
         <div id="results-modal" class="modal-overlay" style="display: none;">
             <div class="modal-content">
                 <button class="modal-close-button">×</button>
@@ -53,8 +53,8 @@
                         <span id="modal-gross-wpm" class="result-value">0</span>
                     </div>
                     <div class="result-item">
-                        <span class="result-label">Characters:</span>
-                        <span id="modal-chars" class="result-value">0/0</span> <!-- Correct/Total -->
+                        <span class="result-label">Chars (Correct/Typed):</span>
+                        <span id="modal-chars" class="result-value">0/0</span>
                     </div>
                     <div class="result-item">
                         <span class="result-label">Errors:</span>
@@ -64,7 +64,7 @@
                 <button id="modal-play-again-button">Play Again</button>
             </div>
         </div>
-        <!-- END NEW: Results Modal HTML -->
+        <!-- END Results Modal HTML -->
 
     </div> <!-- Closing app-container -->
 
