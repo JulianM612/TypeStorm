@@ -5,7 +5,7 @@ const startButton = document.getElementById('start-button');
 const wpmDisplay = document.getElementById('wpm-display');
 const accuracyDisplay = document.getElementById('accuracy-display');
 const timerDisplay = document.getElementById('timer-display');
-const passageContainer = document.getElementById('passage-container'); // ADDED: Reference for shake target
+const passageContainer = document.getElementById('passage-container');
 
 // --- Sample Passages (Hardcoded for MVP) ---
 const samplePassages = [
@@ -55,7 +55,7 @@ function formatPassageForDisplay(passageText) {
 function resetGame() {
     gameActive = false;
     if (timerInterval) clearInterval(timerInterval);
-    passageContainer.classList.remove('shake-error'); // Ensure shake is removed on reset
+    passageContainer.classList.remove('shake-error');
 
     currentPassageText = getRandomPassage();
     formatPassageForDisplay(currentPassageText);
@@ -76,7 +76,8 @@ function resetGame() {
     startButton.textContent = "Start New Test";
     startButton.disabled = false;
 
-    passageCharsSpans.forEach(span => span.classList.remove('current', 'correct', 'incorrect'));
+    // MODIFIED: Ensure all relevant classes are removed on reset
+    passageCharsSpans.forEach(span => span.classList.remove('current', 'incorrect', 'correct-gradient'));
     if (passageCharsSpans.length > 0) {
         passageCharsSpans[0].classList.add('current');
     }
@@ -114,24 +115,22 @@ function handleTypingInput() {
     typedCharCount++;
 
     if (lastTypedChar === expectedChar) {
-        charSpan.classList.add('correct');
-        charSpan.classList.remove('incorrect');
-        passageContainer.classList.remove('shake-error'); // Remove shake on correct input
+        charSpan.classList.remove('incorrect'); // Remove incorrect if it was there
+        charSpan.classList.add('correct-gradient'); // ADDED: Apply gradient style
+        passageContainer.classList.remove('shake-error');
         correctCharCount++;
         currentCharIndex++;
     } else {
+        charSpan.classList.remove('correct-gradient'); // REMOVE gradient if it was there
         charSpan.classList.add('incorrect');
-        charSpan.classList.remove('correct');
         mistakeCount++;
 
-        // --- TRIGGER SHAKE ANIMATION ---
-        if (!passageContainer.classList.contains('shake-error')) { // Avoid re-adding if already shaking quickly
+        if (!passageContainer.classList.contains('shake-error')) {
             passageContainer.classList.add('shake-error');
             setTimeout(() => {
                 passageContainer.classList.remove('shake-error');
-            }, 300); // Must match CSS animation duration
+            }, 300);
         }
-        // -----------------------------
         currentCharIndex++;
     }
 
@@ -183,7 +182,7 @@ function endGame() {
     clearInterval(timerInterval);
     gameActive = false;
     typingInput.disabled = true;
-    passageContainer.classList.remove('shake-error'); // Ensure shake is removed at end
+    passageContainer.classList.remove('shake-error');
 
     const endTime = new Date();
     const timeTakenSeconds = (endTime - startTime) / 1000;

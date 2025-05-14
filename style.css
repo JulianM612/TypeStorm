@@ -42,39 +42,74 @@ h1 {
 
 #passage-display span {
     /* Individual character styling will be applied by JS */
-    transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out; /* Smooth transitions */
+    transition: background-color 0.1s ease-in-out; /* Transition for background, not color if using gradient */
 }
 
-#passage-display span.correct {
-    color: #2ecc71; /* Green for correct */
-    /* We will enhance this later for gradients */
+/* Fallback correct style (optional, if gradient isn't supported or desired) */
+/* #passage-display span.correct {
+    color: #2ecc71;
+} */
+
+/* NEW: Gradient style for correctly typed characters */
+#passage-display span.correct-gradient {
+    background-image: linear-gradient(
+        45deg,
+        #27ae60, /* Slightly darker vibrant Green */
+        #2ecc71, /* Bright Green */
+        #58d68d, /* Lighter Green */
+        #2ecc71,
+        #27ae60
+    );
+    background-size: 300% 100%; /* Make gradient wider for smoother, slower shimmer */
+    background-clip: text;
+    -webkit-background-clip: text; /* For Safari/Chrome */
+    color: transparent !important; /* Make text transparent to show gradient. !important can help ensure it overrides other color rules */
+    -webkit-text-fill-color: transparent; /* For Safari/Chrome */
+    animation: shimmer 3s linear infinite; /* Apply shimmer animation */
 }
 
-/* REVERTED: Incorrect character style (red background, white text) */
+/* NEW: Shimmer animation for the gradient */
+@keyframes shimmer {
+    0% {
+        background-position: 150% 0; /* Start further right */
+    }
+    100% {
+        background-position: -150% 0; /* End further left */
+    }
+}
+
+/* Incorrect character style */
 #passage-display span.incorrect {
     color: #ffffff; /* White text for better contrast on red bg */
     background-color: #e74c3c; /* Solid red background */
-    padding: 1px 3px; /* Add a little padding for the background, adjust as needed */
+    padding: 1px 3px;
     border-radius: 3px;
-    text-decoration: none; /* Ensure no underline if it was added by mistake */
+    text-decoration: none;
+    animation: none; /* Ensure no shimmer animation applies to incorrect chars */
+    /* Re-apply text color if it was made transparent by correct-gradient previously */
+    -webkit-text-fill-color: white; /* Or initial, or unset */
+    /* color: white; // Already set, but good to be explicit if there was an issue */
 }
 
 #passage-display span.current { /* The character the user is currently on */
     background-color: #f39c12; /* Orange for current character */
-    color: #2c3e50; /* Dark text on orange bg for contrast */
-    padding: 1px 3px; /* Consistent padding */
+    color: #2c3e50 !important; /* Dark text on orange bg for contrast, !important to override transparent from gradient */
+    -webkit-text-fill-color: #2c3e50; /* Ensure text color is visible for current */
+    padding: 1px 3px;
     border-radius: 3px;
+    animation: none; /* Ensure no shimmer animation applies to current char */
 }
 
+
 #typing-input {
-    width: calc(100% - 22px); /* Adjust for padding/border */
+    width: calc(100% - 22px);
     padding: 12px;
-    margin-top: 10px; /* Space between passage and input */
+    margin-top: 10px;
     border: 1px solid #7f8c8d;
     border-radius: 5px;
     font-size: 1.1em;
     background-color: #ecf0f1;
-    color: #2c3e50; /* Dark text on light input */
+    color: #2c3e50;
     box-sizing: border-box;
 }
 
@@ -90,16 +125,16 @@ h1 {
 
 .metric {
     font-size: 1.2em;
-    color: #bdc3c7; /* Lighter grey for metric labels */
+    color: #bdc3c7;
 }
 
 .metric span {
-    color: #ecf0f1; /* White for metric values */
+    color: #ecf0f1;
     font-weight: bold;
 }
 
 button {
-    background-color: #1abc9c; /* Turquoise */
+    background-color: #1abc9c;
     color: white;
     border: none;
     padding: 12px 25px;
@@ -114,15 +149,15 @@ button {
 }
 
 button:hover {
-    background-color: #16a085; /* Darker turquoise */
+    background-color: #16a085;
 }
 
 button:active {
-    transform: translateY(1px); /* Simple press effect */
+    transform: translateY(1px);
 }
 
 button:disabled {
-    background-color: #95a5a6; /* Greyed out for disabled */
+    background-color: #95a5a6;
     color: #dfe6e9;
     cursor: not-allowed;
 }
@@ -130,10 +165,10 @@ button:disabled {
 /* Shake Animation for Errors */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); } /* Adjust px for intensity */
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
   20%, 40%, 60%, 80% { transform: translateX(3px); }
 }
 
 .shake-error {
-  animation: shake 0.3s ease-in-out; /* Duration matches JS timeout */
+  animation: shake 0.3s ease-in-out;
 }
