@@ -50,13 +50,13 @@ h1 {
     /* We will enhance this later for gradients */
 }
 
-/* MODIFIED: Refined incorrect character style */
+/* REVERTED: Incorrect character style (red background, white text) */
 #passage-display span.incorrect {
     color: #ffffff; /* White text for better contrast on red bg */
     background-color: #e74c3c; /* Solid red background */
     padding: 1px 3px; /* Add a little padding for the background, adjust as needed */
     border-radius: 3px;
-    /* text-decoration: underline; /* Underline might be too much with bg color - removed */
+    text-decoration: none; /* Ensure no underline if it was added by mistake */
 }
 
 #passage-display span.current { /* The character the user is currently on */
@@ -127,7 +127,7 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* NEW: Shake Animation for Errors */
+/* Shake Animation for Errors */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); } /* Adjust px for intensity */
