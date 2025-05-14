@@ -1,10 +1,11 @@
 // --- DOM Elements ---
 const passageDisplay = document.getElementById('passage-display');
-const typingInput = document.getElementById('typing-input'); // We'll keep this for MVP
+const typingInput = document.getElementById('typing-input');
 const startButton = document.getElementById('start-button');
 const wpmDisplay = document.getElementById('wpm-display');
 const accuracyDisplay = document.getElementById('accuracy-display');
 const timerDisplay = document.getElementById('timer-display');
+const passageContainer = document.getElementById('passage-container'); // ADDED: Reference for shake target
 
 // --- Sample Passages (Hardcoded for MVP) ---
 const samplePassages = [
@@ -13,14 +14,15 @@ const samplePassages = [
     "TypeStorm will be an amazing typing experience.",
     "Practice makes perfect, especially in typing speed and accuracy.",
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    "To be or not to be, that is the question."
+    "To be or not to be, that is the question.",
+    "A journey of a thousand miles begins with a single step."
 ];
 
 // --- Game State Variables ---
 let currentPassageText = "";
-let passageCharsSpans = []; // Array of <span> elements for each character in the passage
+let passageCharsSpans = [];
 let currentCharIndex = 0;
-let typedCharCount = 0; // Total characters typed by user (including mistakes)
+let typedCharCount = 0;
 let correctCharCount = 0;
 let mistakeCount = 0;
 let startTime;
@@ -35,26 +37,25 @@ function getRandomPassage() {
 }
 
 function formatPassageForDisplay(passageText) {
-    passageDisplay.innerHTML = ''; // Clear previous passage
-    passageCharsSpans = []; // Reset the array of char spans
+    passageDisplay.innerHTML = '';
+    passageCharsSpans = [];
 
     passageText.split('').forEach(char => {
         const charSpan = document.createElement('span');
         charSpan.innerText = char;
         passageDisplay.appendChild(charSpan);
-        passageCharsSpans.push(charSpan); // Store span for direct manipulation
+        passageCharsSpans.push(charSpan);
     });
 
-    // Highlight the first character as 'current'
     if (passageCharsSpans.length > 0) {
         passageCharsSpans[0].classList.add('current');
     }
 }
 
 function resetGame() {
-    console.log("Resetting game...");
     gameActive = false;
     if (timerInterval) clearInterval(timerInterval);
+    passageContainer.classList.remove('shake-error'); // Ensure shake is removed on reset
 
     currentPassageText = getRandomPassage();
     formatPassageForDisplay(currentPassageText);
@@ -67,16 +68,14 @@ function resetGame() {
 
     typingInput.value = '';
     typingInput.disabled = false;
-    // typingInput.focus(); // Focus after user clicks start
 
     wpmDisplay.textContent = '0';
-    accuracyDisplay.textContent = '0'; // Show 0% initially
+    accuracyDisplay.textContent = '0';
     timerDisplay.textContent = '0s';
 
     startButton.textContent = "Start New Test";
     startButton.disabled = false;
 
-    // Remove 'current' class from any character if a game was interrupted
     passageCharsSpans.forEach(span => span.classList.remove('current', 'correct', 'incorrect'));
     if (passageCharsSpans.length > 0) {
         passageCharsSpans[0].classList.add('current');
@@ -84,26 +83,25 @@ function resetGame() {
 }
 
 function startGameProcedure() {
-    console.log("Game starting...");
-    resetGame(); // Reset state and load new passage
-    // Game becomes active and timer starts on first valid input
-    typingInput.focus(); // Now focus after reset and ready
+    resetGame();
+    typingInput.focus();
+    console.log("Game ready. Start typing!");
 }
 
+function handleTypingInput() {
+    if (typingInput.disabled) return;
 
-function handleTypingInput(event) {
     const typedText = typingInput.value;
+
     if (!gameActive && typedText.length > 0) {
         gameActive = true;
         startTimer();
-        startButton.disabled = true; // Disable start button once typing begins
+        startButton.disabled = true;
     }
 
     if (!gameActive || currentCharIndex >= currentPassageText.length) {
-        // Don't process if game isn't active or passage is finished
-        // We will clear the input below if passage is finished to prevent further typing
-        if(currentCharIndex >= currentPassageText.length) {
-            typingInput.value = ''; // Prevent typing more once done
+        if (currentCharIndex >= currentPassageText.length) {
+            typingInput.value = '';
         }
         return;
     }
@@ -112,109 +110,105 @@ function handleTypingInput(event) {
     const expectedChar = currentPassageText[currentCharIndex];
     const charSpan = passageCharsSpans[currentCharIndex];
 
-    // Remove 'current' class from the current character span before moving on
     charSpan.classList.remove('current');
+    typedCharCount++;
 
     if (lastTypedChar === expectedChar) {
         charSpan.classList.add('correct');
-        charSpan.classList.remove('incorrect'); // In case of correction (though we don't support backspace correction visually yet)
+        charSpan.classList.remove('incorrect');
+        passageContainer.classList.remove('shake-error'); // Remove shake on correct input
         correctCharCount++;
+        currentCharIndex++;
     } else {
         charSpan.classList.add('incorrect');
         charSpan.classList.remove('correct');
         mistakeCount++;
+
+        // --- TRIGGER SHAKE ANIMATION ---
+        if (!passageContainer.classList.contains('shake-error')) { // Avoid re-adding if already shaking quickly
+            passageContainer.classList.add('shake-error');
+            setTimeout(() => {
+                passageContainer.classList.remove('shake-error');
+            }, 300); // Must match CSS animation duration
+        }
+        // -----------------------------
+        currentCharIndex++;
     }
 
-    typedCharCount++;
-    currentCharIndex++;
-
-    // Highlight next character or end game
     if (currentCharIndex < currentPassageText.length) {
         passageCharsSpans[currentCharIndex].classList.add('current');
-    } else {
+    } else if (currentCharIndex >= currentPassageText.length && gameActive) {
         endGame();
     }
 
-    // For this simplified MVP, we clear the input field after each character.
-    // This forces character-by-character input matching the display.
-    // A more natural input will be an enhancement.
     typingInput.value = '';
-
     updateLiveHUD();
 }
 
 function startTimer() {
     startTime = new Date();
     timerInterval = setInterval(() => {
+        if (!gameActive) {
+            clearInterval(timerInterval);
+            return;
+        }
         const elapsedTimeSeconds = Math.floor((new Date() - startTime) / 1000);
         timerDisplay.textContent = `${elapsedTimeSeconds}s`;
 
-        // Live WPM update (basic calculation)
-        if (gameActive && correctCharCount > 0) {
+        if (correctCharCount > 0) {
             const minutes = elapsedTimeSeconds / 60;
             if (minutes > 0) {
-                const wordsTyped = (correctCharCount / 5); // Average word length of 5, using correct chars
-                const wpm = Math.round(wordsTyped / minutes);
-                wpmDisplay.textContent = wpm;
+                const grossWPM = Math.round((correctCharCount / 5) / minutes);
+                wpmDisplay.textContent = grossWPM;
             } else {
-                wpmDisplay.textContent = '0'; // Avoid NaN or Infinity if time is too short
+                wpmDisplay.textContent = '0';
             }
         }
     }, 1000);
 }
 
 function updateLiveHUD() {
-    // Live Accuracy
     if (typedCharCount > 0) {
         const accuracy = Math.round((correctCharCount / typedCharCount) * 100);
-        accuracyDisplay.textContent = `${accuracy}`; // Just the number, % is in HTML
+        accuracyDisplay.textContent = `${accuracy}`;
     } else {
         accuracyDisplay.textContent = '0';
     }
 }
 
 function endGame() {
+    if (!gameActive) return;
+
     console.log("Game ended!");
     clearInterval(timerInterval);
     gameActive = false;
-    typingInput.disabled = true; // Disable input after finishing
+    typingInput.disabled = true;
+    passageContainer.classList.remove('shake-error'); // Ensure shake is removed at end
 
     const endTime = new Date();
     const timeTakenSeconds = (endTime - startTime) / 1000;
     const timeTakenMinutes = timeTakenSeconds / 60;
 
-    // Final WPM calculation (using correct characters for net WPM)
-    // Standard is (correct characters / 5) / time_in_minutes
     let finalWPM = 0;
-    if (timeTakenMinutes > 0) {
+    if (timeTakenMinutes > 0 && correctCharCount > 0) {
         finalWPM = Math.round((correctCharCount / 5) / timeTakenMinutes);
     }
     wpmDisplay.textContent = finalWPM;
 
-    // Final Accuracy
     let finalAccuracy = 0;
-    if (currentPassageText.length > 0) { // Use passage length for accuracy against the target
-        const accuracyMistakes = currentPassageText.length - correctCharCount; // How many of required chars were missed or typed wrong
-        finalAccuracy = Math.round(((currentPassageText.length - mistakeCount) / currentPassageText.length) * 100);
-         // Alternative: Accuracy based on typed characters:
-        // finalAccuracy = Math.round((correctCharCount / typedCharCount) * 100);
+    if (typedCharCount > 0) {
+         finalAccuracy = Math.round((correctCharCount / typedCharCount) * 100);
     }
-     // Ensure accuracy is not negative if mistakes exceed passage length (should not happen with current logic)
     accuracyDisplay.textContent = `${Math.max(0, finalAccuracy)}`;
 
-
-    timerDisplay.textContent = `${timeTakenSeconds.toFixed(2)}s`; // Show more precise time at end
+    timerDisplay.textContent = `${timeTakenSeconds.toFixed(2)}s`;
 
     startButton.textContent = "Play Again?";
     startButton.disabled = false;
 }
 
-// --- Event Listeners ---
 startButton.addEventListener('click', startGameProcedure);
-// 'input' event is generally better for text fields than 'keydown' for actual text changes
 typingInput.addEventListener('input', handleTypingInput);
 
-// --- Initial Setup ---
-// Load a passage immediately, but don't start the game until button click
-resetGame(); // Call reset to load initial passage and set up UI
+resetGame();
 console.log("TypeStorm Initialized. Click 'Start New Test' to begin.");
