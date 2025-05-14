@@ -1,53 +1,97 @@
+// --- START OF FILE script.js ---
+
 // --- DOM Elements ---
-const passageDisplay = document.getElementById('passage-display');
-const typingInput = document.getElementById('typing-input');
-const startButton = document.getElementById('start-button');
-const wpmDisplay = document.getElementById('wpm-display');
-const accuracyDisplay = document.getElementById('accuracy-display');
-const timerDisplay = document.getElementById('timer-display');
-const passageContainer = document.getElementById('passage-container');
-const progressBarFill = document.getElementById('progress-bar-fill');
-const botModeButton = document.getElementById('bot-mode-button');
-const countdownOverlay = document.getElementById('countdown-overlay');
-const countdownMessage = document.getElementById('countdown-message');
-
-// Results Modal Elements
-const resultsModal = document.getElementById('results-modal');
-const modalCloseButton = document.querySelector('#results-modal .modal-close-button'); // More specific selector
-const modalPlayAgainButton = document.getElementById('modal-play-again-button');
-const modalWpmDisplay = document.getElementById('modal-wpm');
-const modalAccuracyDisplay = document.getElementById('modal-accuracy');
-const modalTimeDisplay = document.getElementById('modal-time');
-const modalGrossWpmDisplay = document.getElementById('modal-gross-wpm');
-const modalCharsDisplay = document.getElementById('modal-chars');
-const modalErrorsDisplay = document.getElementById('modal-errors');
-
-// Settings Modal Elements
-const settingsButton = document.getElementById('settings-button');
-const settingsModal = document.getElementById('settings-modal');
-const settingsModalCloseButton = document.getElementById('settings-modal-close-button');
-const allowBackspaceToggle = document.getElementById('allow-backspace-toggle');
-const settingsSaveButton = document.getElementById('settings-save-button');
-
+const DOMElements = {
+    passageDisplay: document.getElementById('passage-display'),
+    typingInput: document.getElementById('typing-input'),
+    startButton: document.getElementById('start-button'),
+    wpmDisplay: document.getElementById('wpm-display'),
+    accuracyDisplay: document.getElementById('accuracy-display'),
+    timerDisplay: document.getElementById('timer-display'),
+    passageContainer: document.getElementById('passage-container'),
+    progressBarFill: document.getElementById('progress-bar-fill'),
+    botModeButton: document.getElementById('bot-mode-button'),
+    countdownOverlay: document.getElementById('countdown-overlay'),
+    countdownMessage: document.getElementById('countdown-message'),
+    resultsModal: {
+        modal: document.getElementById('results-modal'),
+        closeButton: document.querySelector('#results-modal .modal-close-button'),
+        playAgainButton: document.getElementById('modal-play-again-button'),
+        wpmDisplay: document.getElementById('modal-wpm'),
+        accuracyDisplay: document.getElementById('modal-accuracy'),
+        timeDisplay: document.getElementById('modal-time'),
+        grossWpmDisplay: document.getElementById('modal-gross-wpm'),
+        charsDisplay: document.getElementById('modal-chars'),
+        errorsDisplay: document.getElementById('modal-errors'),
+    },
+    settingsModal: {
+        modal: document.getElementById('settings-modal'),
+        settingsButton: document.getElementById('settings-button'),
+        closeButton: document.getElementById('settings-modal-close-button'),
+        allowBackspaceToggle: document.getElementById('allow-backspace-toggle'),
+        saveButton: document.getElementById('settings-save-button'),
+    }
+};
 
 // --- Audio Elements & Setup ---
 const sounds = {
     countdownTick: null,
     keyPress: null
 };
-let audioUnlocked = false; 
+let audioUnlocked = false;
+
+// --- Game Settings ---
+let gameSettings = {
+    allowBackspace: true
+};
+
+// --- Passages Data ---
+let defaultFallbackPassage = "The quick brown fox jumps over the lazy dog. This is a default passage if the API fails to load.";
+
+// --- Game State Variables ---
+let gameState = {
+    currentPassageText: "",
+    passageCharsSpans: [],
+    passageWords: [],
+    currentCharIndex: 0,
+    typedCharCount: 0,
+    correctCharCount: 0,
+    mistakeCount: 0,
+    startTime: null,
+    timerInterval: null,
+    gameActive: false,
+    botActive: false,
+    botTimeoutId: null,
+    countdownInProgress: false,
+    passagesLoaded: false
+};
+
+// --- Configuration ---
+const Config = {
+    CHARS_PER_WORD: 5,
+    BOT_TYPING_INTERVAL_MS: 50,
+    COUNTDOWN_SECONDS: 3,
+    API_NINJAS_URL: 'https://api.api-ninjas.com/v1/quotes',
+    API_NINJAS_KEY: 'k3SjrLZIe88JPoDPvrFbRQ==NiXjNzu4cbJktQ5C',
+    UI: {
+        SCROLL_TARGET_OFFSET_RATIO: 0.33,
+        SCROLL_VIEWPORT_BUFFER_RATIO: 0.5,
+        SHAKE_ERROR_ANIMATION_DURATION_MS: 300,
+    }
+};
+
 
 function loadAudio() {
     try {
-        sounds.countdownTick = new Audio('sounds/countdown-tick.mp3'); 
-        sounds.keyPress = new Audio('sounds/key-press.mp3');       
+        sounds.countdownTick = new Audio('sounds/countdown-tick.mp3');
+        sounds.keyPress = new Audio('sounds/key-press.mp3');
         console.log("Audio objects for path reference created.");
 
         sounds.countdownTick.onerror = () => console.error("Error with countdownTick.mp3 base audio object.");
         sounds.keyPress.onerror = () => console.error("Error with key-press.mp3 base audio object.");
-        
+
         if (sounds.keyPress) sounds.keyPress.load();
-        if (sounds.countdownTick) sounds.countdownTick.load(); 
+        if (sounds.countdownTick) sounds.countdownTick.load();
 
     } catch (e) {
         console.error("Error creating base Audio objects:", e);
@@ -55,12 +99,12 @@ function loadAudio() {
 }
 
 function playSound(soundName, createNewInstance = false) {
-    if (!audioUnlocked) return; 
+    if (!audioUnlocked) return;
 
     let audioToPlay;
     if (createNewInstance) {
-        if (sounds[soundName] && sounds[soundName].src) { 
-            audioToPlay = new Audio(sounds[soundName].src); 
+        if (sounds[soundName] && sounds[soundName].src) {
+            audioToPlay = new Audio(sounds[soundName].src);
         } else {
             console.warn(`[playSound] Cannot create new instance for "${soundName}", base sound or src missing.`);
             return;
@@ -71,12 +115,12 @@ function playSound(soundName, createNewInstance = false) {
         console.warn(`[playSound] Sound "${soundName}" not found in sounds object definition.`);
         return;
     }
-    
-    if (createNewInstance || audioToPlay.readyState >= 2) { 
-        if (!createNewInstance) audioToPlay.currentTime = 0; 
+
+    if (createNewInstance || audioToPlay.readyState >= 2) {
+        if (!createNewInstance) audioToPlay.currentTime = 0;
         audioToPlay.play().catch(error => console.warn(`Could not play sound "${soundName}":`, error));
     } else {
-         audioToPlay.load(); 
+         audioToPlay.load();
     }
 }
 
@@ -85,30 +129,24 @@ function unlockAudio() {
         audioUnlocked = true;
         console.log("Audio unlocked by user interaction.");
         const prime = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
-        prime.volume = 0; 
-        prime.play().catch(() => {}); 
+        prime.volume = 0;
+        prime.play().catch(() => {});
     }
 }
 
-// --- Game Settings ---
-let gameSettings = {
-    allowBackspace: true // Default to true
-};
 
 function loadSettings() {
     const savedSettings = localStorage.getItem('typeStormSettings');
     if (savedSettings) {
         try {
             const parsedSettings = JSON.parse(savedSettings);
-            // Merge, preferring saved settings but keeping defaults for missing ones
             gameSettings = { ...gameSettings, ...parsedSettings };
         } catch (e) {
             console.error("Error parsing saved settings:", e);
-            // Stick with defaults if parsing fails
         }
     }
-    if (allowBackspaceToggle) {
-        allowBackspaceToggle.checked = gameSettings.allowBackspace;
+    if (DOMElements.settingsModal.allowBackspaceToggle) {
+        DOMElements.settingsModal.allowBackspaceToggle.checked = gameSettings.allowBackspace;
     }
 }
 
@@ -117,59 +155,27 @@ function saveSettings() {
 }
 
 
-// --- Passages Data ---
-let defaultFallbackPassage = "The quick brown fox jumps over the lazy dog. This is a default passage if the API fails to load.";
-let passagesLoaded = false;
-
-// --- Game State Variables ---
-let currentPassageText = "";
-let passageCharsSpans = []; 
-let passageWords = [];    
-let currentCharIndex = 0;
-let typedCharCount = 0;
-let correctCharCount = 0;
-let mistakeCount = 0;
-let startTime;
-let timerInterval;
-let gameActive = false;
-let botActive = false;
-let botTimeoutId;
-let countdownInProgress = false; 
-
-// --- Configuration ---
-const CHARS_PER_WORD = 5;
-const BOT_TYPING_INTERVAL_MS = 50;
-const COUNTDOWN_SECONDS = 3; 
-const API_NINJAS_URL = 'https://api.api-ninjas.com/v1/quotes';
-const API_NINJAS_KEY = 'k3SjrLZIe88JPoDPvrFbRQ==NiXjNzu4cbJktQ5C'; // Replace with your actual key if needed
-
-// UI Behavior Constants
-const SCROLL_TARGET_OFFSET_RATIO = 0.33; // For scrolling passage display to keep current line in view
-const SCROLL_VIEWPORT_BUFFER_RATIO = 0.5; // Buffer for scroll trigger based on character height
-const SHAKE_ERROR_ANIMATION_DURATION_MS = 300; // Duration for the error shake animation
-
-// --- API & Passage Loading ---
 async function loadPassageFromAPI() {
-    console.log("Loading passage from API..."); 
-    if (!passageDisplay || !typingInput || !startButton) {
+    console.log("Loading passage from API...");
+    if (!DOMElements.passageDisplay || !DOMElements.typingInput || !DOMElements.startButton) {
         console.error("CRITICAL UI elements missing for API load.");
-        if (passageDisplay) passageDisplay.innerHTML = '<div class="loader-container"><em>Error: UI elements missing.</em></div>';
-        if(startButton) startButton.disabled = false;
-        if(botModeButton) botModeButton.disabled = false;
+        if (DOMElements.passageDisplay) DOMElements.passageDisplay.innerHTML = '<div class="loader-container"><em>Error: UI elements missing.</em></div>';
+        if(DOMElements.startButton) DOMElements.startButton.disabled = false;
+        if(DOMElements.botModeButton) DOMElements.botModeButton.disabled = false;
         return defaultFallbackPassage;
     }
-    passageDisplay.innerHTML = '<div class="loader-container"><div class="loader"></div><em>Loading new passage...</em></div>';
-    passageDisplay.style.justifyContent = 'center'; 
-    passageDisplay.style.alignItems = 'center';
+    DOMElements.passageDisplay.innerHTML = '<div class="loader-container"><div class="loader"></div><em>Loading new passage...</em></div>';
+    DOMElements.passageDisplay.style.justifyContent = 'center';
+    DOMElements.passageDisplay.style.alignItems = 'center';
 
-    if (API_NINJAS_KEY === 'YOUR_API_KEY' || !API_NINJAS_KEY) {
+    if (Config.API_NINJAS_KEY === 'YOUR_API_KEY' || !Config.API_NINJAS_KEY) {
         console.warn("API Key for API-Ninjas is not set. Using default passage.");
-        passageDisplay.innerHTML = '<div class="loader-container"><em>API Key not configured. Using default.</em></div>';
+        DOMElements.passageDisplay.innerHTML = '<div class="loader-container"><em>API Key not configured. Using default.</em></div>';
         await new Promise(resolve => setTimeout(resolve, 1500));
         return defaultFallbackPassage;
     }
     try {
-        const response = await fetch(API_NINJAS_URL, { headers: { 'X-Api-Key': API_NINJAS_KEY }});
+        const response = await fetch(Config.API_NINJAS_URL, { headers: { 'X-Api-Key': Config.API_NINJAS_KEY }});
         if (!response.ok) {
             console.error(`API error! Status: ${response.status}`);
             throw new Error(`API error! status: ${response.status}`);
@@ -188,250 +194,245 @@ async function loadPassageFromAPI() {
         }
     } catch (error) {
         console.error("Could not load passage from API-Ninjas:", error.message);
-        if (passageDisplay) passageDisplay.innerHTML = '<div class="loader-container"><em>Error loading passage. Using default.</em></div>';
+        if (DOMElements.passageDisplay) DOMElements.passageDisplay.innerHTML = '<div class="loader-container"><em>Error loading passage. Using default.</em></div>';
         await new Promise(resolve => setTimeout(resolve, 1500));
         return defaultFallbackPassage;
     } finally {
-        passagesLoaded = true;
+        gameState.passagesLoaded = true;
     }
 }
 
-// --- Function to update progress bar ---
 function updateProgressBar() {
-    if (!currentPassageText || currentPassageText.length === 0 || !progressBarFill) {
-        if(progressBarFill) progressBarFill.style.width = '0%';
+    if (!gameState.currentPassageText || gameState.currentPassageText.length === 0 || !DOMElements.progressBarFill) {
+        if(DOMElements.progressBarFill) DOMElements.progressBarFill.style.width = '0%';
         return;
     }
-    const progressIndex = Math.min(currentCharIndex, currentPassageText.length);
-    const progressPercent = (progressIndex / currentPassageText.length) * 100;
-    progressBarFill.style.width = `${progressPercent}%`;
+    const progressIndex = Math.min(gameState.currentCharIndex, gameState.currentPassageText.length);
+    const progressPercent = (progressIndex / gameState.currentPassageText.length) * 100;
+    DOMElements.progressBarFill.style.width = `${progressPercent}%`;
 }
 
-// --- Utility Functions ---
-function calculateWPM(charCount, timeSeconds, charsPerWord = CHARS_PER_WORD) {
+function calculateWPM(charCount, timeSeconds, charsPerWord = Config.CHARS_PER_WORD) {
     if (timeSeconds <= 0 || charCount <= 0) return 0;
     const minutes = timeSeconds / 60;
-    if (minutes <= 0) return 0; 
+    if (minutes <= 0) return 0;
     return Math.round((charCount / charsPerWord) / minutes);
 }
 
-
-// --- Core Functions ---
 function formatPassageForDisplay(passageText) {
-    if (!passageDisplay) { return; }
-    passageDisplay.innerHTML = ''; 
-    passageDisplay.style.justifyContent = 'flex-start'; 
-    passageDisplay.style.alignItems = 'flex-start';   
-    passageCharsSpans = []; 
-    passageWords = []; 
-    const words = passageText.split(/(\s+)/); 
+    if (!DOMElements.passageDisplay) { return; }
+    DOMElements.passageDisplay.innerHTML = '';
+    DOMElements.passageDisplay.style.justifyContent = 'flex-start';
+    DOMElements.passageDisplay.style.alignItems = 'flex-start';
+    gameState.passageCharsSpans = [];
+    gameState.passageWords = [];
+    const words = passageText.split(/(\s+)/);
     words.forEach(wordOrSpace => {
-        if (wordOrSpace.match(/\s+/)) { 
+        if (wordOrSpace.match(/\s+/)) {
             const spaceSpan = document.createElement('span');
-            spaceSpan.classList.add('passage-space'); 
-            spaceSpan.innerHTML = wordOrSpace.replace(/ /g, ' '); 
-            passageDisplay.appendChild(spaceSpan);
-            wordOrSpace.split('').forEach(() => passageCharsSpans.push(spaceSpan));
-        } else if (wordOrSpace.length > 0) { 
-            const wordSpanContainer = document.createElement('span'); 
+            spaceSpan.classList.add('passage-space');
+            spaceSpan.innerHTML = wordOrSpace.replace(/ /g, ' ');
+            DOMElements.passageDisplay.appendChild(spaceSpan);
+            wordOrSpace.split('').forEach(() => gameState.passageCharsSpans.push(spaceSpan));
+        } else if (wordOrSpace.length > 0) {
+            const wordSpanContainer = document.createElement('span');
             wordSpanContainer.classList.add('passage-word');
-            passageDisplay.appendChild(wordSpanContainer);
-            passageWords.push(wordSpanContainer);
+            DOMElements.passageDisplay.appendChild(wordSpanContainer);
+            gameState.passageWords.push(wordSpanContainer);
             wordOrSpace.split('').forEach(char => {
                 const charSpan = document.createElement('span');
                 charSpan.innerText = char;
-                wordSpanContainer.appendChild(charSpan); 
-                passageCharsSpans.push(charSpan); 
+                wordSpanContainer.appendChild(charSpan);
+                gameState.passageCharsSpans.push(charSpan);
             });
         }
     });
-    if (passageCharsSpans.length > 0 && passageCharsSpans[0] && passageCharsSpans[0].classList) { 
-        passageCharsSpans[0].classList.add('current');
+    if (gameState.passageCharsSpans.length > 0 && gameState.passageCharsSpans[0] && gameState.passageCharsSpans[0].classList) {
+        gameState.passageCharsSpans[0].classList.add('current');
     }
-    passageDisplay.scrollTop = 0;
+    DOMElements.passageDisplay.scrollTop = 0;
 }
 
 function scrollPassageDisplay() {
-    if (!gameActive || currentCharIndex >= passageCharsSpans.length || !passageDisplay || passageCharsSpans.length === 0) return;
-    const currentActualSpan = passageCharsSpans[currentCharIndex];
+    if (!gameState.gameActive || gameState.currentCharIndex >= gameState.passageCharsSpans.length || !DOMElements.passageDisplay || gameState.passageCharsSpans.length === 0) return;
+    const currentActualSpan = gameState.passageCharsSpans[gameState.currentCharIndex];
     if (!currentActualSpan) { return; }
-    const displayRect = passageDisplay.getBoundingClientRect();
-    const spanRect = currentActualSpan.getBoundingClientRect(); 
-    const targetOffsetFromTop = displayRect.height * SCROLL_TARGET_OFFSET_RATIO;
-    const desiredScrollTop = passageDisplay.scrollTop + (spanRect.top - displayRect.top) - targetOffsetFromTop;
-    const currentSpanTopInDisplay = spanRect.top - displayRect.top; 
-    const buffer = spanRect.height * SCROLL_VIEWPORT_BUFFER_RATIO;
+    const displayRect = DOMElements.passageDisplay.getBoundingClientRect();
+    const spanRect = currentActualSpan.getBoundingClientRect();
+    const targetOffsetFromTop = displayRect.height * Config.UI.SCROLL_TARGET_OFFSET_RATIO;
+    const desiredScrollTop = DOMElements.passageDisplay.scrollTop + (spanRect.top - displayRect.top) - targetOffsetFromTop;
+    const currentSpanTopInDisplay = spanRect.top - displayRect.top;
+    const buffer = spanRect.height * Config.UI.SCROLL_VIEWPORT_BUFFER_RATIO;
     if (currentSpanTopInDisplay > (displayRect.height - spanRect.height - buffer) || currentSpanTopInDisplay < buffer) {
-        if (passageDisplay.scrollTo) passageDisplay.scrollTo({ top: desiredScrollTop, behavior: 'smooth' });
-        else passageDisplay.scrollTop = desiredScrollTop; 
+        if (DOMElements.passageDisplay.scrollTo) DOMElements.passageDisplay.scrollTo({ top: desiredScrollTop, behavior: 'smooth' });
+        else DOMElements.passageDisplay.scrollTop = desiredScrollTop;
     }
 }
 
-async function resetGame(doCountdown = true) { 
-    if (timerInterval) clearInterval(timerInterval);
-    if (botActive) deactivateBotMode(true); 
-    gameActive = false;
-    countdownInProgress = false; 
-    passagesLoaded = false; 
-    if(passageContainer) passageContainer.classList.remove('shake-error'); 
-    if(countdownOverlay) countdownOverlay.style.display = 'none'; 
-    
-    if(typingInput) typingInput.disabled = true; 
-    if(startButton) startButton.disabled = true;
-    if(botModeButton) botModeButton.disabled = true;
+async function resetGame(doCountdown = true) {
+    if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+    if (gameState.botActive) deactivateBotMode(true);
+    gameState.gameActive = false;
+    gameState.countdownInProgress = false;
+    gameState.passagesLoaded = false;
+    if(DOMElements.passageContainer) DOMElements.passageContainer.classList.remove('shake-error');
+    if(DOMElements.countdownOverlay) DOMElements.countdownOverlay.style.display = 'none';
 
-    currentPassageText = await loadPassageFromAPI(); 
-    formatPassageForDisplay(currentPassageText);
+    if(DOMElements.typingInput) DOMElements.typingInput.disabled = true;
+    if(DOMElements.startButton) DOMElements.startButton.disabled = true;
+    if(DOMElements.botModeButton) DOMElements.botModeButton.disabled = true;
+
+    gameState.currentPassageText = await loadPassageFromAPI();
+    formatPassageForDisplay(gameState.currentPassageText);
     updateProgressBar();
 
-    currentCharIndex = 0;
-    typedCharCount = 0;
-    correctCharCount = 0;
-    mistakeCount = 0;
-    startTime = null;
+    gameState.currentCharIndex = 0;
+    gameState.typedCharCount = 0;
+    gameState.correctCharCount = 0;
+    gameState.mistakeCount = 0;
+    gameState.startTime = null;
 
-    if(typingInput) typingInput.value = '';
-    if(wpmDisplay) wpmDisplay.textContent = '0';
-    if(accuracyDisplay) accuracyDisplay.textContent = '0'; 
-    if(timerDisplay) timerDisplay.textContent = '0s';
-    
-    if(startButton) {
-        startButton.textContent = "Start New Test";
-        startButton.disabled = doCountdown; // Keep disabled if countdown is next
+    if(DOMElements.typingInput) DOMElements.typingInput.value = '';
+    if(DOMElements.wpmDisplay) DOMElements.wpmDisplay.textContent = '0';
+    if(DOMElements.accuracyDisplay) DOMElements.accuracyDisplay.textContent = '0';
+    if(DOMElements.timerDisplay) DOMElements.timerDisplay.textContent = '0s';
+
+    if(DOMElements.startButton) {
+        DOMElements.startButton.textContent = "Start New Test";
+        DOMElements.startButton.disabled = doCountdown;
     }
-     if(botModeButton) {
-        botModeButton.textContent = "Activate Bot";
-        botModeButton.disabled = doCountdown; 
-    }
-    
-    if (!doCountdown) { // No countdown, enable buttons if not bot mode starting
-        if(startButton && !botActive) startButton.disabled = false;
-        if(botModeButton && !botActive) botModeButton.disabled = false;
+     if(DOMElements.botModeButton) {
+        DOMElements.botModeButton.textContent = "Activate Bot";
+        DOMElements.botModeButton.disabled = doCountdown;
     }
 
-
-    if (passageCharsSpans.length > 0 && passageCharsSpans[0] && passageCharsSpans[0].classList) { 
-        passageCharsSpans[0].classList.add('current');
+    if (!doCountdown) {
+        if(DOMElements.startButton && !gameState.botActive) DOMElements.startButton.disabled = false;
+        if(DOMElements.botModeButton && !gameState.botActive) DOMElements.botModeButton.disabled = false;
     }
-    scrollPassageDisplay(); 
 
-    if (!doCountdown) { 
-        if(typingInput) typingInput.disabled = false;
-        if (typingInput && !botActive) { 
-            try { typingInput.focus(); } catch (e) { console.warn("Focus failed in resetGame (no countdown)"); }
+    if (gameState.passageCharsSpans.length > 0 && gameState.passageCharsSpans[0] && gameState.passageCharsSpans[0].classList) {
+        gameState.passageCharsSpans[0].classList.add('current');
+    }
+    scrollPassageDisplay();
+
+    if (!doCountdown) {
+        if(DOMElements.typingInput) DOMElements.typingInput.disabled = false;
+        if (DOMElements.typingInput && !gameState.botActive) {
+            try { DOMElements.typingInput.focus(); } catch (e) { console.warn("Focus failed in resetGame (no countdown)"); }
         }
     }
 }
 
 function startCountdown() {
     return new Promise(resolve => {
-        if (!countdownOverlay || !countdownMessage || !typingInput) {
+        if (!DOMElements.countdownOverlay || !DOMElements.countdownMessage || !DOMElements.typingInput) {
             resolve(); return;
         }
-        countdownInProgress = true;
-        if(startButton) startButton.disabled = true; 
-        if(botModeButton) botModeButton.disabled = true;
-        typingInput.disabled = true; 
+        gameState.countdownInProgress = true;
+        if(DOMElements.startButton) DOMElements.startButton.disabled = true;
+        if(DOMElements.botModeButton) DOMElements.botModeButton.disabled = true;
+        DOMElements.typingInput.disabled = true;
 
-        countdownOverlay.style.display = 'flex';
-        let count = COUNTDOWN_SECONDS;
-        
-        function updateAndPlayCountdownTick(number) { 
-            countdownMessage.textContent = number;
+        DOMElements.countdownOverlay.style.display = 'flex';
+        let count = Config.COUNTDOWN_SECONDS;
+
+        function updateAndPlayCountdownTick(number) {
+            DOMElements.countdownMessage.textContent = number;
             if (audioUnlocked && sounds.countdownTick) {
-                playSound('countdownTick', true); 
+                playSound('countdownTick', true);
             }
         }
-        
-        updateAndPlayCountdownTick(count); 
+
+        updateAndPlayCountdownTick(count);
 
         const intervalId = setInterval(() => {
             count--;
             if (count > 0) {
-                updateAndPlayCountdownTick(count); 
+                updateAndPlayCountdownTick(count);
             } else if (count === 0) {
-                countdownMessage.textContent = 'Go!';
+                DOMElements.countdownMessage.textContent = 'Go!';
             } else {
                 clearInterval(intervalId);
-                countdownOverlay.style.display = 'none';
-                countdownInProgress = false;
-                if (typingInput && !botActive) { 
-                    typingInput.disabled = false;
-                    try { typingInput.focus(); } catch (e) { console.warn("Focus failed after countdown"); }
+                DOMElements.countdownOverlay.style.display = 'none';
+                gameState.countdownInProgress = false;
+                if (DOMElements.typingInput && !gameState.botActive) {
+                    DOMElements.typingInput.disabled = false;
+                    try { DOMElements.typingInput.focus(); } catch (e) { console.warn("Focus failed after countdown"); }
                 }
-                resolve(); 
+                resolve();
             }
         }, 1000);
     });
 }
 
 async function initialAppSetup() {
-    if (typingInput) typingInput.disabled = true;
-    if (passageDisplay) passageDisplay.innerHTML = '<em>Click "Start New Test" to begin.</em>';
-    if (startButton) startButton.disabled = false;
-    if (botModeButton) botModeButton.disabled = false;
-    if(wpmDisplay) wpmDisplay.textContent = '0';
-    if(accuracyDisplay) accuracyDisplay.textContent = '0'; 
-    if(timerDisplay) timerDisplay.textContent = '0s';
-    if(progressBarFill) progressBarFill.style.width = '0%';
+    if (DOMElements.typingInput) DOMElements.typingInput.disabled = true;
+    if (DOMElements.passageDisplay) DOMElements.passageDisplay.innerHTML = '<em>Click "Start New Test" to begin.</em>';
+    if (DOMElements.startButton) DOMElements.startButton.disabled = false;
+    if (DOMElements.botModeButton) DOMElements.botModeButton.disabled = false;
+    if(DOMElements.wpmDisplay) DOMElements.wpmDisplay.textContent = '0';
+    if(DOMElements.accuracyDisplay) DOMElements.accuracyDisplay.textContent = '0';
+    if(DOMElements.timerDisplay) DOMElements.timerDisplay.textContent = '0s';
+    if(DOMElements.progressBarFill) DOMElements.progressBarFill.style.width = '0%';
 }
 
 async function startGameProcedure() {
-    await resetGame(true); 
-    if (!botActive) { 
-        await startCountdown(); 
+    await resetGame(true);
+    if (!gameState.botActive) {
+        await startCountdown();
     }
 }
 
 function processTypedCharacter(typedChar, isBackspace = false) {
-    if (countdownInProgress) return; 
+    if (gameState.countdownInProgress) return;
     if (isBackspace) {
         if (!gameSettings.allowBackspace) {
-            if(typingInput) typingInput.value = ''; 
-            return; 
+            if(DOMElements.typingInput) DOMElements.typingInput.value = '';
+            return;
         }
-        if (currentCharIndex === 0 || typedCharCount === 0) return;
-        if (currentCharIndex < currentPassageText.length && passageCharsSpans[currentCharIndex]) {
-             passageCharsSpans[currentCharIndex].classList.remove('current');
-        } else if (currentCharIndex === currentPassageText.length && passageCharsSpans[currentCharIndex-1]) {
-             passageCharsSpans[currentCharIndex-1].classList.remove('current');
+        if (gameState.currentCharIndex === 0 || gameState.typedCharCount === 0) return;
+        if (gameState.currentCharIndex < gameState.currentPassageText.length && gameState.passageCharsSpans[gameState.currentCharIndex]) {
+             gameState.passageCharsSpans[gameState.currentCharIndex].classList.remove('current');
+        } else if (gameState.currentCharIndex === gameState.currentPassageText.length && gameState.passageCharsSpans[gameState.currentCharIndex-1]) {
+             gameState.passageCharsSpans[gameState.currentCharIndex-1].classList.remove('current');
         }
-        currentCharIndex--;
-        const charSpanToUndo = passageCharsSpans[currentCharIndex];
-        if (!charSpanToUndo) return; 
-        typedCharCount--; 
-        if (charSpanToUndo.classList.contains('correct')) { correctCharCount--; }
-        else if (charSpanToUndo.classList.contains('incorrect')) { mistakeCount--; }
+        gameState.currentCharIndex--;
+        const charSpanToUndo = gameState.passageCharsSpans[gameState.currentCharIndex];
+        if (!charSpanToUndo) return;
+        gameState.typedCharCount--;
+        if (charSpanToUndo.classList.contains('correct')) { gameState.correctCharCount--; }
+        else if (charSpanToUndo.classList.contains('incorrect')) { gameState.mistakeCount--; }
         charSpanToUndo.classList.remove('correct', 'incorrect');
         charSpanToUndo.classList.add('current');
-    } else { 
-        if (currentCharIndex >= currentPassageText.length) return; 
-        if (sounds.keyPress) playSound('keyPress', false); 
+    } else {
+        if (gameState.currentCharIndex >= gameState.currentPassageText.length) return;
+        if (sounds.keyPress) playSound('keyPress', false);
 
-        const expectedChar = currentPassageText[currentCharIndex];
-        const charSpan = passageCharsSpans[currentCharIndex];
+        const expectedChar = gameState.currentPassageText[gameState.currentCharIndex];
+        const charSpan = gameState.passageCharsSpans[gameState.currentCharIndex];
         if (!charSpan) { return; }
         charSpan.classList.remove('current');
-        typedCharCount++;
+        gameState.typedCharCount++;
         if (typedChar === expectedChar) {
-            charSpan.classList.remove('incorrect'); 
+            charSpan.classList.remove('incorrect');
             charSpan.classList.add('correct');
-            if(passageContainer) passageContainer.classList.remove('shake-error');
-            correctCharCount++;
+            if(DOMElements.passageContainer) DOMElements.passageContainer.classList.remove('shake-error');
+            gameState.correctCharCount++;
         } else {
-            charSpan.classList.remove('correct'); 
+            charSpan.classList.remove('correct');
             charSpan.classList.add('incorrect');
-            mistakeCount++;
-            if (passageContainer && !passageContainer.classList.contains('shake-error')) {
-                passageContainer.classList.add('shake-error');
-                setTimeout(() => { if(passageContainer) passageContainer.classList.remove('shake-error'); }, SHAKE_ERROR_ANIMATION_DURATION_MS);
+            gameState.mistakeCount++;
+            if (DOMElements.passageContainer && !DOMElements.passageContainer.classList.contains('shake-error')) {
+                DOMElements.passageContainer.classList.add('shake-error');
+                setTimeout(() => { if(DOMElements.passageContainer) DOMElements.passageContainer.classList.remove('shake-error'); }, Config.UI.SHAKE_ERROR_ANIMATION_DURATION_MS);
             }
         }
-        currentCharIndex++;
-        if (currentCharIndex < currentPassageText.length && passageCharsSpans[currentCharIndex]) {
-            passageCharsSpans[currentCharIndex].classList.add('current');
-        } else if (currentCharIndex >= currentPassageText.length) { 
-            endGame(); 
+        gameState.currentCharIndex++;
+        if (gameState.currentCharIndex < gameState.currentPassageText.length && gameState.passageCharsSpans[gameState.currentCharIndex]) {
+            gameState.passageCharsSpans[gameState.currentCharIndex].classList.add('current');
+        } else if (gameState.currentCharIndex >= gameState.currentPassageText.length) {
+            endGame();
         }
     }
     updateProgressBar();
@@ -440,253 +441,250 @@ function processTypedCharacter(typedChar, isBackspace = false) {
 }
 
 function handleKeyDown(event) {
-    if (countdownInProgress) { 
+    if (gameState.countdownInProgress) {
         event.preventDefault();
         return;
     }
     if (event.key === "Backspace" && !gameSettings.allowBackspace) {
-        event.preventDefault(); 
-        processTypedCharacter(null, true); 
-        if(typingInput) typingInput.value = ''; 
-        return;
-    }
-    
-    if (typingInput && typingInput.disabled || botActive) return; 
-    if (event.key === "Tab" || event.key === "Shift" || event.key === "Control" || event.key === "Alt" || event.key === "Meta") return;
-    if (event.key !== "Backspace" && event.key.length > 1) return; 
-    
-    if (!gameActive && event.key !== "Backspace" && event.key.length === 1) {
-        gameActive = true;
-        startTimer();
-        if(startButton) startButton.disabled = true; 
-        if (botModeButton) botModeButton.disabled = true;
-    }
-    if (!gameActive && event.key === "Backspace") return; 
-    if (!gameActive) return; 
-
-    if (event.key === "Backspace") { 
         event.preventDefault();
         processTypedCharacter(null, true);
-        if(typingInput) typingInput.value = ''; 
-    } else if (event.key.length === 1 && currentCharIndex < currentPassageText.length) { 
+        if(DOMElements.typingInput) DOMElements.typingInput.value = '';
+        return;
+    }
+
+    if (DOMElements.typingInput && DOMElements.typingInput.disabled || gameState.botActive) return;
+    if (event.key === "Tab" || event.key === "Shift" || event.key === "Control" || event.key === "Alt" || event.key === "Meta") return;
+    if (event.key !== "Backspace" && event.key.length > 1) return;
+
+    if (!gameState.gameActive && event.key !== "Backspace" && event.key.length === 1) {
+        gameState.gameActive = true;
+        startTimer();
+        if(DOMElements.startButton) DOMElements.startButton.disabled = true;
+        if (DOMElements.botModeButton) DOMElements.botModeButton.disabled = true;
+    }
+    if (!gameState.gameActive && event.key === "Backspace") return;
+    if (!gameState.gameActive) return;
+
+    if (event.key === "Backspace") {
+        event.preventDefault();
+        processTypedCharacter(null, true);
+        if(DOMElements.typingInput) DOMElements.typingInput.value = '';
+    } else if (event.key.length === 1 && gameState.currentCharIndex < gameState.currentPassageText.length) {
         event.preventDefault();
         processTypedCharacter(event.key, false);
-        if(typingInput) typingInput.value = '';
-    } else if (currentCharIndex >= currentPassageText.length && event.key !== "Backspace") {
-        if(typingInput) typingInput.value = '';
+        if(DOMElements.typingInput) DOMElements.typingInput.value = '';
+    } else if (gameState.currentCharIndex >= gameState.currentPassageText.length && event.key !== "Backspace") {
+        if(DOMElements.typingInput) DOMElements.typingInput.value = '';
         event.preventDefault();
     }
 }
 
 function startTimer() {
-    startTime = new Date();
-    timerInterval = setInterval(() => {
-        if (!gameActive) { clearInterval(timerInterval); return; }
-        const elapsedTimeSeconds = Math.floor((new Date() - startTime) / 1000);
-        if(timerDisplay) timerDisplay.textContent = `${elapsedTimeSeconds}s`;
-        
-        if(wpmDisplay) wpmDisplay.textContent = calculateWPM(correctCharCount, elapsedTimeSeconds);
+    gameState.startTime = new Date();
+    gameState.timerInterval = setInterval(() => {
+        if (!gameState.gameActive) { clearInterval(gameState.timerInterval); return; }
+        const elapsedTimeSeconds = Math.floor((new Date() - gameState.startTime) / 1000);
+        if(DOMElements.timerDisplay) DOMElements.timerDisplay.textContent = `${elapsedTimeSeconds}s`;
+
+        if(DOMElements.wpmDisplay) DOMElements.wpmDisplay.textContent = calculateWPM(gameState.correctCharCount, elapsedTimeSeconds);
     }, 1000);
 }
 
 function updateLiveHUD() {
-    if (typedCharCount > 0) {
-        if(accuracyDisplay) accuracyDisplay.textContent = `${Math.max(0, Math.round((correctCharCount / typedCharCount) * 100))}`;
-    } else { if(accuracyDisplay) accuracyDisplay.textContent = '0'; }
+    if (gameState.typedCharCount > 0) {
+        if(DOMElements.accuracyDisplay) DOMElements.accuracyDisplay.textContent = `${Math.max(0, Math.round((gameState.correctCharCount / gameState.typedCharCount) * 100))}`;
+    } else { if(DOMElements.accuracyDisplay) DOMElements.accuracyDisplay.textContent = '0'; }
 }
 
 function openResultsModal(finalNetWPM, finalAccuracy, finalTimeSeconds, finalTypedCharCount, finalCorrectCharCount, finalMistakeCount) {
-    if (!resultsModal) return;
+    if (!DOMElements.resultsModal.modal) return;
 
     const grossWPM = calculateWPM(finalTypedCharCount, finalTimeSeconds);
     const finalTimeDisplay = `${finalTimeSeconds.toFixed(2)}s`;
 
-    if(modalWpmDisplay) modalWpmDisplay.textContent = finalNetWPM;
-    if(modalAccuracyDisplay) modalAccuracyDisplay.textContent = finalAccuracy;
-    if(modalTimeDisplay) modalTimeDisplay.textContent = finalTimeDisplay;
-    if(modalGrossWpmDisplay) modalGrossWpmDisplay.textContent = grossWPM;
-    if(modalCharsDisplay) modalCharsDisplay.textContent = `${finalCorrectCharCount}/${finalTypedCharCount}`;
-    if(modalErrorsDisplay) modalErrorsDisplay.textContent = finalMistakeCount;
+    if(DOMElements.resultsModal.wpmDisplay) DOMElements.resultsModal.wpmDisplay.textContent = finalNetWPM;
+    if(DOMElements.resultsModal.accuracyDisplay) DOMElements.resultsModal.accuracyDisplay.textContent = finalAccuracy;
+    if(DOMElements.resultsModal.timeDisplay) DOMElements.resultsModal.timeDisplay.textContent = finalTimeDisplay;
+    if(DOMElements.resultsModal.grossWpmDisplay) DOMElements.resultsModal.grossWpmDisplay.textContent = grossWPM;
+    if(DOMElements.resultsModal.charsDisplay) DOMElements.resultsModal.charsDisplay.textContent = `${finalCorrectCharCount}/${finalTypedCharCount}`;
+    if(DOMElements.resultsModal.errorsDisplay) DOMElements.resultsModal.errorsDisplay.textContent = finalMistakeCount;
 
-    resultsModal.style.display = 'flex';
-    setTimeout(() => { resultsModal.classList.add('active'); }, 10);
+    DOMElements.resultsModal.modal.style.display = 'flex';
+    setTimeout(() => { DOMElements.resultsModal.modal.classList.add('active'); }, 10);
 }
 
 function closeResultsModal() {
-    if (!resultsModal) return;
-    resultsModal.classList.remove('active');
+    if (!DOMElements.resultsModal.modal) return;
+    DOMElements.resultsModal.modal.classList.remove('active');
 }
 
 function endGame() {
-    if (!gameActive) return;
+    if (!gameState.gameActive) return;
     console.log("Game ended!");
-    clearInterval(timerInterval);
-    if(passageContainer) passageContainer.classList.remove('shake-error');
+    clearInterval(gameState.timerInterval);
+    if(DOMElements.passageContainer) DOMElements.passageContainer.classList.remove('shake-error');
     updateProgressBar();
     const endTime = new Date();
-    const timeTakenSeconds = startTime ? (endTime - startTime) / 1000 : 0;
-    
-    let finalNetWPM = calculateWPM(correctCharCount, timeTakenSeconds);
+    const timeTakenSeconds = gameState.startTime ? (endTime - gameState.startTime) / 1000 : 0;
 
-    if(wpmDisplay) wpmDisplay.textContent = finalNetWPM;
+    let finalNetWPM = calculateWPM(gameState.correctCharCount, timeTakenSeconds);
+
+    if(DOMElements.wpmDisplay) DOMElements.wpmDisplay.textContent = finalNetWPM;
     let finalAccuracyVal = 0;
-    if (typedCharCount > 0) { finalAccuracyVal = Math.round((correctCharCount / typedCharCount) * 100); }
-    if(accuracyDisplay) accuracyDisplay.textContent = `${Math.max(0, finalAccuracyVal)}`;
-    if(timerDisplay) timerDisplay.textContent = `${timeTakenSeconds.toFixed(2)}s`;
-    if(typingInput) typingInput.disabled = true;
-    if(startButton) {
-        startButton.textContent = "Play Again?";
-        startButton.disabled = false;
+    if (gameState.typedCharCount > 0) { finalAccuracyVal = Math.round((gameState.correctCharCount / gameState.typedCharCount) * 100); }
+    if(DOMElements.accuracyDisplay) DOMElements.accuracyDisplay.textContent = `${Math.max(0, finalAccuracyVal)}`;
+    if(DOMElements.timerDisplay) DOMElements.timerDisplay.textContent = `${timeTakenSeconds.toFixed(2)}s`;
+    if(DOMElements.typingInput) DOMElements.typingInput.disabled = true;
+    if(DOMElements.startButton) {
+        DOMElements.startButton.textContent = "Play Again?";
+        DOMElements.startButton.disabled = false;
     }
-    if (botModeButton) {
-        botModeButton.textContent = "Activate Bot";
-        botModeButton.disabled = false;
+    if (DOMElements.botModeButton) {
+        DOMElements.botModeButton.textContent = "Activate Bot";
+        DOMElements.botModeButton.disabled = false;
     }
-    if (botActive) { deactivateBotMode(true); }
-    gameActive = false;
+    if (gameState.botActive) { deactivateBotMode(true); }
+    gameState.gameActive = false;
     openResultsModal(
-        finalNetWPM, 
-        Math.max(0, finalAccuracyVal), 
-        timeTakenSeconds, 
-        typedCharCount, 
-        correctCharCount, 
-        mistakeCount
+        finalNetWPM,
+        Math.max(0, finalAccuracyVal),
+        timeTakenSeconds,
+        gameState.typedCharCount,
+        gameState.correctCharCount,
+        gameState.mistakeCount
     );
 }
 
 async function activateBotMode() {
-    if (gameActive || botActive || countdownInProgress) return; 
-    await resetGame(false); 
-    gameActive = true;
-    botActive = true;
-    if(typingInput) typingInput.disabled = true; 
-    if(startButton) startButton.disabled = true;
-    if (botModeButton) {
-        botModeButton.textContent = "Bot Running...";
-        botModeButton.disabled = true;
+    if (gameState.gameActive || gameState.botActive || gameState.countdownInProgress) return;
+    await resetGame(false);
+    gameState.gameActive = true;
+    gameState.botActive = true;
+    if(DOMElements.typingInput) DOMElements.typingInput.disabled = true;
+    if(DOMElements.startButton) DOMElements.startButton.disabled = true;
+    if (DOMElements.botModeButton) {
+        DOMElements.botModeButton.textContent = "Bot Running...";
+        DOMElements.botModeButton.disabled = true;
     }
     console.log("Bot mode activated.");
-    startTimer(); 
+    startTimer();
     botTypeNextCharacter();
 }
 
 function botTypeNextCharacter() {
-    if (!botActive || !gameActive || currentCharIndex >= currentPassageText.length) {
-        if (botActive && !gameActive) { deactivateBotMode(false); } 
-        else if (botActive && currentCharIndex >= currentPassageText.length) { endGame(); } 
+    if (!gameState.botActive || !gameState.gameActive || gameState.currentCharIndex >= gameState.currentPassageText.length) {
+        if (gameState.botActive && !gameState.gameActive) { deactivateBotMode(false); }
+        else if (gameState.botActive && gameState.currentCharIndex >= gameState.currentPassageText.length) { endGame(); }
         return;
     }
-    const charToType = currentPassageText[currentCharIndex];
-    processTypedCharacter(charToType, false); 
-    if (gameActive && botActive && currentCharIndex < currentPassageText.length) { 
-        botTimeoutId = setTimeout(botTypeNextCharacter, BOT_TYPING_INTERVAL_MS);
+    const charToType = gameState.currentPassageText[gameState.currentCharIndex];
+    processTypedCharacter(charToType, false);
+    if (gameState.gameActive && gameState.botActive && gameState.currentCharIndex < gameState.currentPassageText.length) {
+        gameState.botTimeoutId = setTimeout(botTypeNextCharacter, Config.BOT_TYPING_INTERVAL_MS);
     }
 }
 
 function deactivateBotMode(calledFromResetOrEnd = false) {
-    if (botTimeoutId) clearTimeout(botTimeoutId);
-    botActive = false;
-    if (!calledFromResetOrEnd && botModeButton) {
-        botModeButton.textContent = "Activate Bot";
-        botModeButton.disabled = gameActive || countdownInProgress;
+    if (gameState.botTimeoutId) clearTimeout(gameState.botTimeoutId);
+    gameState.botActive = false;
+    if (!calledFromResetOrEnd && DOMElements.botModeButton) {
+        DOMElements.botModeButton.textContent = "Activate Bot";
+        DOMElements.botModeButton.disabled = gameState.gameActive || gameState.countdownInProgress;
     }
-    if (!calledFromResetOrEnd && !gameActive && !countdownInProgress) {
-        if(typingInput) typingInput.disabled = false;
-        if(startButton) startButton.disabled = false;
+    if (!calledFromResetOrEnd && !gameState.gameActive && !gameState.countdownInProgress) {
+        if(DOMElements.typingInput) DOMElements.typingInput.disabled = false;
+        if(DOMElements.startButton) DOMElements.startButton.disabled = false;
     }
     console.log("Bot mode deactivated.");
 }
 
-// --- Settings Modal Functions ---
 function openSettingsModal() {
-    if (!settingsModal) return;
-    if (allowBackspaceToggle) allowBackspaceToggle.checked = gameSettings.allowBackspace;
-    settingsModal.style.display = 'flex';
-    setTimeout(() => settingsModal.classList.add('active'), 10);
+    if (!DOMElements.settingsModal.modal) return;
+    if (DOMElements.settingsModal.allowBackspaceToggle) DOMElements.settingsModal.allowBackspaceToggle.checked = gameSettings.allowBackspace;
+    DOMElements.settingsModal.modal.style.display = 'flex';
+    setTimeout(() => DOMElements.settingsModal.modal.classList.add('active'), 10);
 }
 
 function closeSettingsModal() {
-    if (!settingsModal) return;
-    settingsModal.classList.remove('active');
+    if (!DOMElements.settingsModal.modal) return;
+    DOMElements.settingsModal.modal.classList.remove('active');
 }
 
 // --- Event Listeners ---
-if(startButton) {
-    startButton.addEventListener('click', () => {
-        unlockAudio(); 
+if(DOMElements.startButton) {
+    DOMElements.startButton.addEventListener('click', () => {
+        unlockAudio();
         startGameProcedure();
     });
 }
-if(typingInput) {
-    typingInput.addEventListener('keydown', (event) => {
-        unlockAudio(); 
+if(DOMElements.typingInput) {
+    DOMElements.typingInput.addEventListener('keydown', (event) => {
+        unlockAudio();
         handleKeyDown(event);
     });
 }
-if (botModeButton) {
-    botModeButton.addEventListener('click', () => {
-        unlockAudio(); 
+if (DOMElements.botModeButton) {
+    DOMElements.botModeButton.addEventListener('click', () => {
+        unlockAudio();
         activateBotMode();
     });
 }
-if (modalCloseButton) { // For results modal
-    modalCloseButton.addEventListener('click', closeResultsModal);
+if (DOMElements.resultsModal.closeButton) {
+    DOMElements.resultsModal.closeButton.addEventListener('click', closeResultsModal);
 }
-if (modalPlayAgainButton) {
-    modalPlayAgainButton.addEventListener('click', () => {
-        unlockAudio(); 
+if (DOMElements.resultsModal.playAgainButton) {
+    DOMElements.resultsModal.playAgainButton.addEventListener('click', () => {
+        unlockAudio();
         closeResultsModal();
-        startGameProcedure(); 
+        startGameProcedure();
     });
 }
 
-// Settings Event Listeners
-if (settingsButton) {
-    settingsButton.addEventListener('click', () => {
-        unlockAudio(); 
+if (DOMElements.settingsModal.settingsButton) {
+    DOMElements.settingsModal.settingsButton.addEventListener('click', () => {
+        unlockAudio();
         openSettingsModal();
     });
 }
-if (settingsModalCloseButton) {
-    settingsModalCloseButton.addEventListener('click', closeSettingsModal);
+if (DOMElements.settingsModal.closeButton) {
+    DOMElements.settingsModal.closeButton.addEventListener('click', closeSettingsModal);
 }
-if (settingsModal) { 
-    settingsModal.addEventListener('click', (event) => {
-        if (event.target === settingsModal) closeSettingsModal();
+if (DOMElements.settingsModal.modal) {
+    DOMElements.settingsModal.modal.addEventListener('click', (event) => {
+        if (event.target === DOMElements.settingsModal.modal) closeSettingsModal();
     });
 }
-if (allowBackspaceToggle) {
-    allowBackspaceToggle.addEventListener('change', (event) => {
+if (DOMElements.settingsModal.allowBackspaceToggle) {
+    DOMElements.settingsModal.allowBackspaceToggle.addEventListener('change', (event) => {
         gameSettings.allowBackspace = event.target.checked;
         saveSettings();
     });
 }
-if (settingsSaveButton) { 
-    settingsSaveButton.addEventListener('click', () => {
-        // Settings are applied on change, this button just closes.
-        // saveSettings(); // Could save again here if needed, but change listener already does it.
+if (DOMElements.settingsModal.saveButton) {
+    DOMElements.settingsModal.saveButton.addEventListener('click', () => {
         closeSettingsModal();
     });
 }
 
 window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-        if (resultsModal && resultsModal.classList.contains('active')) {
+        if (DOMElements.resultsModal.modal && DOMElements.resultsModal.modal.classList.contains('active')) {
             closeResultsModal();
-        } else if (settingsModal && settingsModal.classList.contains('active')) {
+        } else if (DOMElements.settingsModal.modal && DOMElements.settingsModal.modal.classList.contains('active')) {
             closeSettingsModal();
         }
     }
 });
-if (resultsModal) { // Close on overlay click for results modal
-    resultsModal.addEventListener('click', (event) => {
-        if (event.target === resultsModal) closeResultsModal();
+if (DOMElements.resultsModal.modal) {
+    DOMElements.resultsModal.modal.addEventListener('click', (event) => {
+        if (event.target === DOMElements.resultsModal.modal) closeResultsModal();
     });
 }
 
 
 // --- Initialization ---
-loadAudio(); 
+loadAudio();
 loadSettings();
-initialAppSetup(); 
+initialAppSetup();
 console.log("TypeStorm application initialized. Click 'Start New Test' to begin.");
+// --- END OF FILE script.js ---
