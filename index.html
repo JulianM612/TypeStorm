@@ -10,11 +10,16 @@
     <div id="app-container">
         <h1>TypeStorm</h1>
 
+        <!-- NEW: Progress Bar HTML -->
+        <div id="progress-bar-container">
+            <div id="progress-bar-fill"></div>
+        </div>
+        <!-- END NEW -->
+
         <div id="passage-container">
             <div id="passage-display">
                 <!-- Text passage will appear here -->
             </div>
-            <!-- We will use a less intrusive way to capture input soon, but this is good for MVP -->
             <input type="text" id="typing-input" placeholder="Start typing here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
@@ -25,7 +30,6 @@
         </div>
 
         <button id="start-button">Start New Test</button>
-        <!-- <button id="reset-button" style="display:none;">Try Again</button> --> <!-- Initially hidden, might use later -->
     </div>
 
     <script src="script.js"></script>
