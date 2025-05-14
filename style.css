@@ -27,7 +27,7 @@ h1 {
     font-size: 2.5em;
 }
 
-/* --- NEW: Progress Bar Styles --- */
+/* --- Progress Bar Styles --- */
 #progress-bar-container {
     width: 100%;
     height: 12px; /* Slightly thicker */
@@ -45,10 +45,7 @@ h1 {
     background-color: #1abc9c; /* Turquoise, same as h1 and button */
     border-radius: 6px; /* Match container's radius for a smooth look */
     transition: width 0.15s ease-out; /* Smooth transition for width changes */
-    /* Later we can add shimmer animation here */
 }
-/* --- END Progress Bar Styles --- */
-
 
 #passage-container {
     margin-bottom: 20px;
@@ -61,6 +58,7 @@ h1 {
     font-size: 1.3em;
     text-align: left;
     letter-spacing: 1px;
+    user-select: none; /* Prevent text selection during typing test */
 }
 
 #passage-display span {
