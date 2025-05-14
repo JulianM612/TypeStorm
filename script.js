@@ -7,7 +7,7 @@ const accuracyDisplay = document.getElementById('accuracy-display');
 const timerDisplay = document.getElementById('timer-display');
 const passageContainer = document.getElementById('passage-container');
 const progressBarFill = document.getElementById('progress-bar-fill');
-const botModeButton = document.getElementById('bot-mode-button'); // ADDED: Bot Mode Button
+const botModeButton = document.getElementById('bot-mode-button');
 
 // --- Passages Data ---
 let allPassages = [];
@@ -23,12 +23,12 @@ let mistakeCount = 0;
 let startTime;
 let timerInterval;
 let gameActive = false;
-let botActive = false;      // ADDED: Bot active state
-let botTimeoutId;         // ADDED: Bot timer ID
+let botActive = false;
+let botTimeoutId;
 
 // --- Configuration ---
-const CHARS_PER_WORD = 5; // Standard for WPM calculation
-const BOT_TYPING_INTERVAL_MS = 50; // Milliseconds between bot key presses
+const CHARS_PER_WORD = 5;
+const BOT_TYPING_INTERVAL_MS = 50;
 
 // --- Function to load passages from JSON ---
 async function loadPassages() {
@@ -55,7 +55,7 @@ async function loadPassages() {
         allPassages = ["Failed to load passages. Check texts.json. This is a default passage to allow testing."];
         passagesLoaded = true;
     } finally {
-        resetGame(); // Initialize with a passage even on error
+        resetGame();
     }
 }
 
@@ -97,9 +97,9 @@ function formatPassageForDisplay(passageText) {
 function resetGame() {
     if (timerInterval) clearInterval(timerInterval);
     if (botActive) {
-        deactivateBotMode(true); // Pass true as it's part of a reset
+        deactivateBotMode(true);
     }
-    gameActive = false; // Ensure game is marked inactive before setup
+    gameActive = false;
 
     passageContainer.classList.remove('shake-error');
 
@@ -115,7 +115,7 @@ function resetGame() {
 
     typingInput.value = '';
     typingInput.disabled = false;
-    typingInput.focus(); // Focus input on reset
+    typingInput.focus();
 
     wpmDisplay.textContent = '0';
     accuracyDisplay.textContent = '0';
@@ -137,78 +137,115 @@ function resetGame() {
 function startGameProcedure() {
     if (!passagesLoaded) {
         console.log("Passages still loading...");
-        // Optionally, disable start button until passagesLoaded is true
         return;
     }
-    resetGame(); // This will also focus the input
+    resetGame();
     console.log("Game ready. Start typing!");
 }
 
-// --- NEW: Centralized Character Processing Logic ---
-function processTypedCharacter(typedChar) {
-    // This function should only be called if gameActive is true and currentCharIndex is valid.
-    // The calling functions (handleTypingInput, botTypeNextCharacter) ensure this.
+function processTypedCharacter(typedChar, isBackspace = false) {
+    if (isBackspace) {
+        if (currentCharIndex === 0 || typedCharCount === 0) return; // Cannot backspace at the start or if no chars typed
 
-    const expectedChar = currentPassageText[currentCharIndex];
-    const charSpan = passageCharsSpans[currentCharIndex];
+        // If we are past the end (e.g. game ended, but backspace is somehow processed)
+        // or if current char index is already at a valid position for backspacing.
+        const previousCharSpan = passageCharsSpans[currentCharIndex -1];
+        if (!previousCharSpan) return; // Should not happen if currentCharIndex > 0
 
-    charSpan.classList.remove('current');
-    typedCharCount++;
+        // Remove 'current' from the character we *were* at (or about to type)
+        // This handles the case where currentCharIndex might be one ahead due to a previous type
+        if (currentCharIndex < currentPassageText.length) {
+            passageCharsSpans[currentCharIndex]?.classList.remove('current');
+        }
 
-    if (typedChar === expectedChar) {
-        charSpan.classList.remove('incorrect');
-        charSpan.classList.add('correct');
-        passageContainer.classList.remove('shake-error');
-        correctCharCount++;
-    } else {
-        charSpan.classList.remove('correct');
-        charSpan.classList.add('incorrect');
-        mistakeCount++;
-        if (!passageContainer.classList.contains('shake-error')) {
-            passageContainer.classList.add('shake-error');
-            setTimeout(() => {
-                passageContainer.classList.remove('shake-error');
-            }, 300);
+        currentCharIndex--; // Move cursor back logically
+
+        const charSpanToUndo = passageCharsSpans[currentCharIndex];
+        typedCharCount--;
+
+        if (charSpanToUndo.classList.contains('correct')) {
+            correctCharCount--;
+        } else if (charSpanToUndo.classList.contains('incorrect')) {
+            mistakeCount--;
+        }
+
+        charSpanToUndo.classList.remove('correct', 'incorrect');
+        charSpanToUndo.classList.add('current');
+
+    } else { // Normal character typing
+        if (currentCharIndex >= currentPassageText.length) return; // Already at the end
+
+        const expectedChar = currentPassageText[currentCharIndex];
+        const charSpan = passageCharsSpans[currentCharIndex];
+
+        charSpan.classList.remove('current');
+        typedCharCount++;
+
+        if (typedChar === expectedChar) {
+            charSpan.classList.remove('incorrect');
+            charSpan.classList.add('correct');
+            passageContainer.classList.remove('shake-error');
+            correctCharCount++;
+        } else {
+            charSpan.classList.remove('correct');
+            charSpan.classList.add('incorrect');
+            mistakeCount++;
+            if (!passageContainer.classList.contains('shake-error')) {
+                passageContainer.classList.add('shake-error');
+                setTimeout(() => {
+                    passageContainer.classList.remove('shake-error');
+                }, 300);
+            }
+        }
+        currentCharIndex++;
+
+        if (currentCharIndex < currentPassageText.length) {
+            passageCharsSpans[currentCharIndex].classList.add('current');
+        } else if (currentCharIndex >= currentPassageText.length) { // Game ends when passage is complete
+            endGame();
         }
     }
-    currentCharIndex++;
+
     updateProgressBar();
-
-    if (currentCharIndex < currentPassageText.length) {
-        passageCharsSpans[currentCharIndex].classList.add('current');
-    } else if (currentCharIndex >= currentPassageText.length) { // Game ends when passage is complete
-        endGame();
-    }
-
     updateLiveHUD();
 }
 
-function handleTypingInput() {
-    if (typingInput.disabled || botActive) return; // Do not process user input if disabled or bot is active
+function handleKeyDown(event) {
+    if (typingInput.disabled || botActive) return;
 
-    const typedText = typingInput.value;
+    if (event.key === "Tab" || event.key === "Shift" || event.key === "Control" || event.key === "Alt" || event.key === "Meta") {
+        return; // Allow modifier keys
+    }
 
-    if (!gameActive && typedText.length > 0) {
+    // Prevent default for most other non-character keys if they are not handled
+    if (event.key !== "Backspace" && event.key.length > 1) {
+        // event.preventDefault(); // Optional: uncomment to block keys like ArrowUp, etc.
+        return;
+    }
+
+    if (!gameActive && event.key !== "Backspace" && event.key.length === 1) {
         gameActive = true;
         startTimer();
         startButton.disabled = true;
         if (botModeButton) botModeButton.disabled = true;
     }
 
-    if (!gameActive || currentCharIndex >= currentPassageText.length) {
-        // If game not active or passage already completed, clear input and return
-        if (currentCharIndex >= currentPassageText.length) {
-             typingInput.value = '';
-        }
-        return;
-    }
+    if (!gameActive) return;
 
-    const lastTypedChar = typedText.slice(-1);
-    if (lastTypedChar) {
-        processTypedCharacter(lastTypedChar);
+    if (event.key === "Backspace") {
+        event.preventDefault(); // Prevent browser back navigation or input field deletion
+        processTypedCharacter(null, true);
+        typingInput.value = '';
+    } else if (event.key.length === 1 && currentCharIndex < currentPassageText.length) {
+        event.preventDefault(); // Prevent character from appearing in input, as we handle it
+        processTypedCharacter(event.key, false);
+        typingInput.value = '';
+    } else if (currentCharIndex >= currentPassageText.length && event.key !== "Backspace") {
+        // At the end of the passage, only allow backspace or do nothing for other keys
+        typingInput.value = '';
+        event.preventDefault();
     }
-
-    typingInput.value = ''; // Clear input for next char, enforcing single char processing
+    // If game is over and they hit backspace, processTypedCharacter handles it
 }
 
 function startTimer() {
@@ -227,9 +264,15 @@ function startTimer() {
                 const grossWPM = Math.round((correctCharCount / CHARS_PER_WORD) / minutes);
                 wpmDisplay.textContent = grossWPM;
             } else {
-                wpmDisplay.textContent = '0'; // Or calculate based on partial minute for faster feedback
+                 // For very short times, calculate WPM based on typed chars
+                if (elapsedTimeSeconds > 0) { // Avoid division by zero
+                    const wpm_interim = Math.round((correctCharCount / CHARS_PER_WORD) / (elapsedTimeSeconds / 60));
+                    wpmDisplay.textContent = wpm_interim;
+                } else {
+                    wpmDisplay.textContent = '0';
+                }
             }
-        } else if (elapsedTimeSeconds > 0) { // Time passed but no correct chars
+        } else if (elapsedTimeSeconds > 0) {
             wpmDisplay.textContent = '0';
         }
     }, 1000);
@@ -238,19 +281,19 @@ function startTimer() {
 function updateLiveHUD() {
     if (typedCharCount > 0) {
         const accuracy = Math.round((correctCharCount / typedCharCount) * 100);
-        accuracyDisplay.textContent = `${accuracy}`;
+        accuracyDisplay.textContent = `${Math.max(0, accuracy)}`;
     } else {
         accuracyDisplay.textContent = '0';
     }
 }
 
 function endGame() {
-    if (!gameActive) return; // Prevent multiple calls if already ended
+    if (!gameActive) return;
 
     console.log("Game ended!");
     clearInterval(timerInterval);
     passageContainer.classList.remove('shake-error');
-    updateProgressBar(); // Ensure progress bar is full
+    updateProgressBar();
 
     const endTime = new Date();
     const timeTakenSeconds = startTime ? (endTime - startTime) / 1000 : 0;
@@ -259,8 +302,11 @@ function endGame() {
     let finalWPM = 0;
     if (timeTakenMinutes > 0 && correctCharCount > 0) {
         finalWPM = Math.round((correctCharCount / CHARS_PER_WORD) / timeTakenMinutes);
+    } else if (correctCharCount > 0 && timeTakenSeconds > 0) { // Handle cases less than a minute
+        finalWPM = Math.round((correctCharCount / CHARS_PER_WORD) / (timeTakenSeconds/60));
     }
     wpmDisplay.textContent = finalWPM;
+
 
     let finalAccuracy = 0;
     if (typedCharCount > 0) {
@@ -269,7 +315,6 @@ function endGame() {
     accuracyDisplay.textContent = `${Math.max(0, finalAccuracy)}`;
     timerDisplay.textContent = `${timeTakenSeconds.toFixed(2)}s`;
 
-    // UI updates for game end state
     typingInput.disabled = true;
     startButton.textContent = "Play Again?";
     startButton.disabled = false;
@@ -280,21 +325,21 @@ function endGame() {
     }
 
     if (botActive) {
-        deactivateBotMode(true); // Game ended, ensure bot is fully deactivated
+        deactivateBotMode(true);
     }
 
-    gameActive = false; // Set gameActive to false AFTER all cleanup
+    gameActive = false;
 }
 
-// --- NEW: Bot Mode Functions ---
+// --- Bot Mode Functions ---
 function activateBotMode() {
-    if (gameActive || botActive) return; // Don't start if a game or bot is already active
+    if (gameActive || botActive) return;
 
-    resetGame(); // Prepare a fresh game state (this also focuses input, but we'll disable it)
+    resetGame();
 
-    gameActive = true; // Mark game as active for timer and logic
+    gameActive = true;
     botActive = true;
-    typingInput.disabled = true; // User cannot type
+    typingInput.disabled = true;
     startButton.disabled = true;
     if (botModeButton) {
         botModeButton.textContent = "Bot Running...";
@@ -302,48 +347,35 @@ function activateBotMode() {
     }
 
     console.log("Bot mode activated.");
-    startTimer(); // Start the main game timer for the bot
+    startTimer();
     botTypeNextCharacter();
 }
 
 function botTypeNextCharacter() {
     if (!botActive || !gameActive || currentCharIndex >= currentPassageText.length) {
-        // Stop conditions: bot manually deactivated, game ended by other means, or passage completed
-        // If passage completed, processTypedCharacter would have called endGame, which handles bot deactivation.
-        // This is a safeguard.
-        if (botActive && !gameActive) { // Game ended, bot needs to clean up its own state if not done by endGame
-             deactivateBotMode(false); // Not part of reset/end, so allow UI updates
+        if (botActive && !gameActive) {
+             deactivateBotMode(false);
         }
         return;
     }
 
     const charToType = currentPassageText[currentCharIndex];
-    // Directly call processTypedCharacter - bot is always "correct" for this demonstration
-    // No need to simulate input field value for the bot
-    processTypedCharacter(charToType);
+    processTypedCharacter(charToType, false); // Bot types normally, no backspace
 
-    // If game is still active and bot should continue (passage not yet complete)
     if (gameActive && botActive && currentCharIndex < currentPassageText.length) {
         botTimeoutId = setTimeout(botTypeNextCharacter, BOT_TYPING_INTERVAL_MS);
     }
-    // If the passage got completed by the last processTypedCharacter, endGame would have been called.
 }
 
 function deactivateBotMode(calledFromResetOrEnd = false) {
     if (botTimeoutId) clearTimeout(botTimeoutId);
     botActive = false;
 
-    // Only adjust UI if not part of a full resetGame or endGame flow,
-    // as those functions will handle most button states.
-    // This primarily handles the bot button's text if bot is stopped independently.
     if (!calledFromResetOrEnd && botModeButton) {
         botModeButton.textContent = "Activate Bot";
-        // Enable bot button only if no game is active.
-        // If a game IS active (user somehow took over), it remains disabled.
         botModeButton.disabled = gameActive;
     }
     if (!calledFromResetOrEnd && !gameActive) {
-        // If bot is deactivated and no game is active, ensure typing input is enabled
         typingInput.disabled = false;
         startButton.disabled = false;
     }
@@ -352,7 +384,7 @@ function deactivateBotMode(calledFromResetOrEnd = false) {
 
 // --- Event Listeners ---
 startButton.addEventListener('click', startGameProcedure);
-typingInput.addEventListener('input', handleTypingInput);
+typingInput.addEventListener('keydown', handleKeyDown); // CHANGED to keydown
 if (botModeButton) {
     botModeButton.addEventListener('click', activateBotMode);
 }
