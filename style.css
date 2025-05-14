@@ -53,7 +53,6 @@ h1 {
     padding: 20px; /* Overall padding for the container */
     border-radius: 5px;
     border: 1px solid #46627f;
-    /* min-height: 120px; */ /* Removed, passage-display controls its height */
     line-height: 1.8; /* Default line height for text inside */
     font-size: 1.3em; /* Default font size for text inside */
     text-align: left;
@@ -64,10 +63,8 @@ h1 {
 #passage-display {
     height: 110px; /* ADJUSTABLE: Aim for 3-4 lines. (1.3em * 1.8 line-height * ~3 lines) */
     overflow-y: hidden; /* Hides overflowing text; we scroll programmatically */
-    position: relative; /* For potential future absolute positioning of children or overlays */
+    position: relative;
     padding: 5px 0; /* Optional: Small internal vertical padding */
-    /* Ensure text inherits properties like line-height, font-size, letter-spacing from #passage-container */
-    /* If text looks misaligned, explicitly set text-align: left; here too. */
 }
 
 #passage-display span {
@@ -91,6 +88,13 @@ h1 {
     color: #2c3e50;
     padding: 1px 3px;
     border-radius: 3px;
+}
+
+/* NEW: Style for the current word being typed */
+#passage-display span.current-word {
+    background-color: #4a6075; /* A slightly lighter shade than passage-container bg */
+    /* Make sure this is subtle and doesn't clash with .correct, .incorrect, or .current */
+    /* For example, if .current has a strong background, it should still be visible on top of this */
 }
 
 
