@@ -1,0 +1,135 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #2c3e50; /* Dark blue-grey */
+    color: #ecf0f1; /* Light grey/white */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+#app-container {
+    background-color: #34495e; /* Slightly lighter blue-grey */
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    width: 90%;
+    max-width: 800px;
+}
+
+h1 {
+    color: #1abc9c; /* Turquoise */
+    margin-bottom: 25px;
+    font-size: 2.5em;
+}
+
+#passage-container {
+    margin-bottom: 20px;
+    background-color: #2c3e50; /* Same as body for contrast */
+    padding: 20px;
+    border-radius: 5px;
+    border: 1px solid #46627f;
+    min-height: 120px; /* Give it some initial space */
+    line-height: 1.8; /* For readability of text lines */
+    font-size: 1.3em; /* Make passage text a bit larger */
+    text-align: left; /* Passages usually read left-to-right */
+    letter-spacing: 1px; /* Slightly space out letters for clarity */
+}
+
+#passage-display span {
+    /* Individual character styling will be applied by JS */
+    transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out; /* Smooth transitions */
+}
+
+#passage-display span.correct {
+    color: #2ecc71; /* Green for correct */
+}
+
+#passage-display span.incorrect {
+    color: #e74c3c; /* Red for incorrect */
+    background-color: rgba(231, 76, 60, 0.2); /* Light red background for incorrect */
+    text-decoration: underline;
+    text-decoration-color: #c0392b; /* Darker red for underline */
+}
+
+#passage-display span.current { /* The character the user is currently on */
+    background-color: #f39c12; /* Orange for current character */
+    color: #2c3e50; /* Dark text on orange bg for contrast */
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+#typing-input {
+    width: calc(100% - 22px); /* Adjust for padding/border */
+    padding: 12px;
+    margin-top: 10px; /* Space between passage and input */
+    border: 1px solid #7f8c8d;
+    border-radius: 5px;
+    font-size: 1.1em;
+    background-color: #ecf0f1;
+    color: #2c3e50; /* Dark text on light input */
+    box-sizing: border-box;
+}
+
+/* Hide the input field once we use global key listeners (Phase 1 enhancement) */
+/* For now, keep it visible for easier MVP debugging */
+/*
+#typing-input {
+    opacity: 0;
+    position: absolute;
+    z-index: -1;
+}
+*/
+
+#hud {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 25px;
+    background-color: #2c3e50;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #46627f;
+}
+
+.metric {
+    font-size: 1.2em;
+    color: #bdc3c7; /* Lighter grey for metric labels */
+}
+
+.metric span {
+    color: #ecf0f1; /* White for metric values */
+    font-weight: bold;
+}
+
+button {
+    background-color: #1abc9c; /* Turquoise */
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 1.1em;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    margin: 5px;
+}
+
+button:hover {
+    background-color: #16a085; /* Darker turquoise */
+}
+
+button:active {
+    transform: translateY(1px); /* Simple press effect */
+}
+
+button:disabled {
+    background-color: #95a5a6; /* Greyed out for disabled */
+    color: #dfe6e9;
+    cursor: not-allowed;
+}
