@@ -8,14 +8,12 @@ const timerDisplay = document.getElementById('timer-display');
 const passageContainer = document.getElementById('passage-container');
 const progressBarFill = document.getElementById('progress-bar-fill');
 const botModeButton = document.getElementById('bot-mode-button');
-
-// NEW: Countdown Elements
 const countdownOverlay = document.getElementById('countdown-overlay');
 const countdownMessage = document.getElementById('countdown-message');
 
-// Modal DOM Elements
+// Results Modal Elements
 const resultsModal = document.getElementById('results-modal');
-const modalCloseButton = document.querySelector('.modal-close-button');
+const modalCloseButton = document.querySelector('#results-modal .modal-close-button'); // More specific selector
 const modalPlayAgainButton = document.getElementById('modal-play-again-button');
 const modalWpmDisplay = document.getElementById('modal-wpm');
 const modalAccuracyDisplay = document.getElementById('modal-accuracy');
@@ -24,18 +22,103 @@ const modalGrossWpmDisplay = document.getElementById('modal-gross-wpm');
 const modalCharsDisplay = document.getElementById('modal-chars');
 const modalErrorsDisplay = document.getElementById('modal-errors');
 
-// --- ADDED: DOM Element Checks ---
-console.log("--- DOM Element Checks ---");
-console.log("passageDisplay:", passageDisplay);
-console.log("typingInput:", typingInput);
-// ... (other checks remain the same)
-console.log("countdownOverlay:", countdownOverlay);
-console.log("countdownMessage:", countdownMessage);
-console.log("--- End DOM Element Checks ---");
+// Settings Modal Elements
+const settingsButton = document.getElementById('settings-button');
+const settingsModal = document.getElementById('settings-modal');
+const settingsModalCloseButton = document.getElementById('settings-modal-close-button');
+const allowBackspaceToggle = document.getElementById('allow-backspace-toggle');
+const settingsSaveButton = document.getElementById('settings-save-button');
+
+
+// --- Audio Elements & Setup ---
+const sounds = {
+    countdownTick: null,
+    keyPress: null
+};
+let audioUnlocked = false; 
+
+function loadAudio() {
+    try {
+        sounds.countdownTick = new Audio('sounds/countdown-tick.mp3'); 
+        sounds.keyPress = new Audio('sounds/key-press.mp3');       
+        console.log("Audio objects for path reference created.");
+
+        sounds.countdownTick.onerror = () => console.error("Error with countdownTick.mp3 base audio object.");
+        sounds.keyPress.onerror = () => console.error("Error with key-press.mp3 base audio object.");
+        
+        if (sounds.keyPress) sounds.keyPress.load();
+        if (sounds.countdownTick) sounds.countdownTick.load(); 
+
+    } catch (e) {
+        console.error("Error creating base Audio objects:", e);
+    }
+}
+
+function playSound(soundName, createNewInstance = false) {
+    if (!audioUnlocked) return; 
+
+    let audioToPlay;
+    if (createNewInstance) {
+        if (sounds[soundName] && sounds[soundName].src) { 
+            audioToPlay = new Audio(sounds[soundName].src); 
+        } else {
+            console.warn(`[playSound] Cannot create new instance for "${soundName}", base sound or src missing.`);
+            return;
+        }
+    } else if (sounds[soundName]) {
+        audioToPlay = sounds[soundName];
+    } else {
+        console.warn(`[playSound] Sound "${soundName}" not found in sounds object definition.`);
+        return;
+    }
+    
+    if (createNewInstance || audioToPlay.readyState >= 2) { 
+        if (!createNewInstance) audioToPlay.currentTime = 0; 
+        audioToPlay.play().catch(error => console.warn(`Could not play sound "${soundName}":`, error));
+    } else {
+         audioToPlay.load(); 
+    }
+}
+
+function unlockAudio() {
+    if (!audioUnlocked) {
+        audioUnlocked = true;
+        console.log("Audio unlocked by user interaction.");
+        const prime = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+        prime.volume = 0; 
+        prime.play().catch(() => {}); 
+    }
+}
+
+// --- Game Settings ---
+let gameSettings = {
+    allowBackspace: true // Default to true
+};
+
+function loadSettings() {
+    const savedSettings = localStorage.getItem('typeStormSettings');
+    if (savedSettings) {
+        try {
+            const parsedSettings = JSON.parse(savedSettings);
+            // Merge, preferring saved settings but keeping defaults for missing ones
+            gameSettings = { ...gameSettings, ...parsedSettings };
+        } catch (e) {
+            console.error("Error parsing saved settings:", e);
+            // Stick with defaults if parsing fails
+        }
+    }
+    if (allowBackspaceToggle) {
+        allowBackspaceToggle.checked = gameSettings.allowBackspace;
+    }
+}
+
+function saveSettings() {
+    localStorage.setItem('typeStormSettings', JSON.stringify(gameSettings));
+}
 
 
 // --- Passages Data ---
-let defaultFallbackPassage = "The quick brown fox jumps over the lazy dog. This is a default passage if the API fails to load. Please check your internet connection or try again later.";
+let defaultFallbackPassage = "The quick brown fox jumps over the lazy dog. This is a default passage if the API fails to load.";
 let passagesLoaded = false;
 
 // --- Game State Variables ---
@@ -51,21 +134,20 @@ let timerInterval;
 let gameActive = false;
 let botActive = false;
 let botTimeoutId;
-let countdownInProgress = false; // NEW: Flag for countdown state
-
+let countdownInProgress = false; 
 
 // --- Configuration ---
 const CHARS_PER_WORD = 5;
 const BOT_TYPING_INTERVAL_MS = 50;
-const COUNTDOWN_SECONDS = 3; // NEW: Countdown duration
+const COUNTDOWN_SECONDS = 3; 
 const API_NINJAS_URL = 'https://api.api-ninjas.com/v1/quotes';
 const API_NINJAS_KEY = 'k3SjrLZIe88JPoDPvrFbRQ==NiXjNzu4cbJktQ5C'; 
 
 // --- Function to load passages from API-Ninjas ---
 async function loadPassageFromAPI() {
-    console.log("0. loadPassageFromAPI started."); 
+    console.log("Loading passage from API..."); 
     if (!passageDisplay || !typingInput || !startButton) {
-        console.error("CRITICAL ERROR: One or more essential DOM elements are null.");
+        console.error("CRITICAL UI elements missing for API load.");
         if (passageDisplay) passageDisplay.innerHTML = '<div class="loader-container"><em>Error: UI elements missing.</em></div>';
         if(startButton) startButton.disabled = false;
         if(botModeButton) botModeButton.disabled = false;
@@ -74,35 +156,38 @@ async function loadPassageFromAPI() {
     passageDisplay.innerHTML = '<div class="loader-container"><div class="loader"></div><em>Loading new passage...</em></div>';
     passageDisplay.style.justifyContent = 'center'; 
     passageDisplay.style.alignItems = 'center';
-    typingInput.disabled = true;
-    startButton.disabled = true;
-    if(botModeButton) botModeButton.disabled = true;
+
     if (API_NINJAS_KEY === 'YOUR_API_KEY' || !API_NINJAS_KEY) {
-        console.error("1. API Key for API-Ninjas is not set.");
+        console.warn("API Key for API-Ninjas is not set. Using default passage.");
         passageDisplay.innerHTML = '<div class="loader-container"><em>API Key not configured. Using default.</em></div>';
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
         return defaultFallbackPassage;
     }
     try {
         const response = await fetch(API_NINJAS_URL, { headers: { 'X-Api-Key': API_NINJAS_KEY }});
-        if (!response.ok) throw new Error(`API error! status: ${response.status}`);
+        if (!response.ok) {
+            console.error(`API error! Status: ${response.status}`);
+            throw new Error(`API error! status: ${response.status}`);
+        }
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0 && data[0].quote) {
             const passageText = data[0].quote.trim().replace(/\s\s+/g, ' ');
-            if (passageText.length === 0) throw new Error("API returned an empty quote.");
-            console.log("DEBUG: Processed passageText:", `"${passageText}"`);
+            if (passageText.length === 0) {
+                 console.error("API returned an empty quote.");
+                 throw new Error("API returned an empty quote.");
+            }
             return passageText;
         } else {
-            throw new Error("API response not in expected format or empty quote.");
+            console.error("API response not in expected format or empty quote content.");
+            throw new Error("API response not in expected format or empty quote content.");
         }
     } catch (error) {
-        console.error("9. CATCH BLOCK: Could not load passage from API-Ninjas:", error.message);
+        console.error("Could not load passage from API-Ninjas:", error.message);
         if (passageDisplay) passageDisplay.innerHTML = '<div class="loader-container"><em>Error loading passage. Using default.</em></div>';
         await new Promise(resolve => setTimeout(resolve, 1500));
         return defaultFallbackPassage;
     } finally {
         passagesLoaded = true;
-        // Buttons and input enabling will be handled after countdown or if no countdown
     }
 }
 
@@ -119,24 +204,20 @@ function updateProgressBar() {
 
 // --- Core Functions ---
 function formatPassageForDisplay(passageText) {
-    if (!passageDisplay) { console.error("formatPassageForDisplay: passageDisplay is null!"); return; }
+    if (!passageDisplay) { return; }
     passageDisplay.innerHTML = ''; 
     passageDisplay.style.justifyContent = 'flex-start'; 
     passageDisplay.style.alignItems = 'flex-start';   
     passageCharsSpans = []; 
     passageWords = []; 
-    const cleanPassageText = passageText; 
-    console.log("DEBUG: Text for formatPassageForDisplay:", `"${cleanPassageText}"`);
-    const words = cleanPassageText.split(/(\s+)/); 
+    const words = passageText.split(/(\s+)/); 
     words.forEach(wordOrSpace => {
         if (wordOrSpace.match(/\s+/)) { 
             const spaceSpan = document.createElement('span');
             spaceSpan.classList.add('passage-space'); 
             spaceSpan.innerHTML = wordOrSpace.replace(/ /g, ' '); 
             passageDisplay.appendChild(spaceSpan);
-            wordOrSpace.split('').forEach(spaceChar => {
-                passageCharsSpans.push(spaceSpan); 
-            });
+            wordOrSpace.split('').forEach(() => passageCharsSpans.push(spaceSpan));
         } else if (wordOrSpace.length > 0) { 
             const wordSpanContainer = document.createElement('span'); 
             wordSpanContainer.classList.add('passage-word');
@@ -156,7 +237,6 @@ function formatPassageForDisplay(passageText) {
     passageDisplay.scrollTop = 0;
 }
 
-
 function scrollPassageDisplay() {
     if (!gameActive || currentCharIndex >= passageCharsSpans.length || !passageDisplay || passageCharsSpans.length === 0) return;
     const currentActualSpan = passageCharsSpans[currentCharIndex];
@@ -173,18 +253,18 @@ function scrollPassageDisplay() {
     }
 }
 
-async function resetGame(doCountdown = true) { // MODIFIED: Added doCountdown parameter
+async function resetGame(doCountdown = true) { 
     if (timerInterval) clearInterval(timerInterval);
     if (botActive) deactivateBotMode(true); 
     gameActive = false;
-    countdownInProgress = false; // Reset countdown flag
+    countdownInProgress = false; 
     passagesLoaded = false; 
     if(passageContainer) passageContainer.classList.remove('shake-error'); 
-    if(countdownOverlay) countdownOverlay.style.display = 'none'; // Hide countdown initially
-
-    // Ensure input is disabled before loading, buttons might be enabled later by startGameProcedure
-    if(typingInput) typingInput.disabled = true;
-
+    if(countdownOverlay) countdownOverlay.style.display = 'none'; 
+    
+    if(typingInput) typingInput.disabled = true; 
+    if(startButton) startButton.disabled = true;
+    if(botModeButton) botModeButton.disabled = true;
 
     currentPassageText = await loadPassageFromAPI(); 
     formatPassageForDisplay(currentPassageText);
@@ -198,15 +278,21 @@ async function resetGame(doCountdown = true) { // MODIFIED: Added doCountdown pa
 
     if(typingInput) typingInput.value = '';
     if(wpmDisplay) wpmDisplay.textContent = '0';
-    if(accuracyDisplay) accuracyDisplay.textContent = '0'; // No % here, added in HTML
+    if(accuracyDisplay) accuracyDisplay.textContent = '0'; 
     if(timerDisplay) timerDisplay.textContent = '0s';
+    
     if(startButton) {
         startButton.textContent = "Start New Test";
-        startButton.disabled = false; // Re-enable start button after reset finishes
+        startButton.disabled = doCountdown; // Keep disabled if countdown is next
     }
      if(botModeButton) {
         botModeButton.textContent = "Activate Bot";
-        botModeButton.disabled = false; // Re-enable bot button
+        botModeButton.disabled = doCountdown; 
+    }
+    
+    if (!doCountdown) { // No countdown, enable buttons if not bot mode starting
+        if(startButton && !botActive) startButton.disabled = false;
+        if(botModeButton && !botActive) botModeButton.disabled = false;
     }
 
 
@@ -215,75 +301,81 @@ async function resetGame(doCountdown = true) { // MODIFIED: Added doCountdown pa
     }
     scrollPassageDisplay(); 
 
-    // If not doing a countdown, enable input immediately
-    if (!doCountdown) {
+    if (!doCountdown) { 
         if(typingInput) typingInput.disabled = false;
-        if (typingInput && !botActive) { // Only focus if not in bot mode setup
+        if (typingInput && !botActive) { 
             try { typingInput.focus(); } catch (e) { console.warn("Focus failed in resetGame (no countdown)"); }
         }
     }
 }
 
-// NEW: Countdown Function
 function startCountdown() {
     return new Promise(resolve => {
         if (!countdownOverlay || !countdownMessage || !typingInput) {
-            console.warn("Countdown elements missing, skipping countdown.");
-            resolve();
-            return;
+            resolve(); return;
         }
-
         countdownInProgress = true;
-        startButton.disabled = true; // Disable buttons during countdown
+        if(startButton) startButton.disabled = true; 
         if(botModeButton) botModeButton.disabled = true;
-        typingInput.disabled = true; // Ensure input is disabled
+        typingInput.disabled = true; 
+
         countdownOverlay.style.display = 'flex';
         let count = COUNTDOWN_SECONDS;
-        countdownMessage.textContent = count;
+        
+        function updateAndPlayCountdownTick(number) { 
+            countdownMessage.textContent = number;
+            if (audioUnlocked && sounds.countdownTick) {
+                playSound('countdownTick', true); 
+            }
+        }
+        
+        updateAndPlayCountdownTick(count); 
 
         const intervalId = setInterval(() => {
             count--;
             if (count > 0) {
-                countdownMessage.textContent = count;
+                updateAndPlayCountdownTick(count); 
             } else if (count === 0) {
                 countdownMessage.textContent = 'Go!';
             } else {
                 clearInterval(intervalId);
                 countdownOverlay.style.display = 'none';
                 countdownInProgress = false;
-                if (typingInput && !botActive) { // Only enable/focus if bot is not about to run
+                if (typingInput && !botActive) { 
                     typingInput.disabled = false;
                     try { typingInput.focus(); } catch (e) { console.warn("Focus failed after countdown"); }
                 }
-                // Re-enable buttons if game hasn't auto-started (e.g. if bot isn't activating)
-                // Game start logic (disabling buttons) is in handleKeyDown or activateBotMode
-                // For manual start, user typing will trigger button disable.
-                // Start button remains disabled until game ends or new reset.
-                // Bot button also handled by its own logic.
-
-                resolve(); // Resolve the promise once countdown is complete
+                resolve(); 
             }
         }, 1000);
     });
 }
 
+async function initialAppSetup() {
+    if (typingInput) typingInput.disabled = true;
+    if (passageDisplay) passageDisplay.innerHTML = '<em>Click "Start New Test" to begin.</em>';
+    if (startButton) startButton.disabled = false;
+    if (botModeButton) botModeButton.disabled = false;
+    if(wpmDisplay) wpmDisplay.textContent = '0';
+    if(accuracyDisplay) accuracyDisplay.textContent = '0'; 
+    if(timerDisplay) timerDisplay.textContent = '0s';
+    if(progressBarFill) progressBarFill.style.width = '0%';
+}
 
 async function startGameProcedure() {
-    await resetGame(true); // Pass true to indicate countdown is desired
-    if (!botActive) { // Only start countdown if not immediately activating bot
-        await startCountdown();
-    } else {
-        // If bot mode was initiated, resetGame was called by activateBotMode,
-        // and activateBotMode will handle its own flow without user countdown.
-        // So, we might need to adjust activateBotMode to call resetGame(false)
-        if(typingInput) typingInput.disabled = false; // Ensure input enabled for bot if no countdown
+    await resetGame(true); 
+    if (!botActive) { 
+        await startCountdown(); 
     }
-    console.log("Game ready. Start typing (after countdown if any)!");
 }
 
 function processTypedCharacter(typedChar, isBackspace = false) {
-    if (countdownInProgress) return; // Do not process typing during countdown
+    if (countdownInProgress) return; 
     if (isBackspace) {
+        if (!gameSettings.allowBackspace) {
+            if(typingInput) typingInput.value = ''; 
+            return; 
+        }
         if (currentCharIndex === 0 || typedCharCount === 0) return;
         if (currentCharIndex < currentPassageText.length && passageCharsSpans[currentCharIndex]) {
              passageCharsSpans[currentCharIndex].classList.remove('current');
@@ -300,6 +392,8 @@ function processTypedCharacter(typedChar, isBackspace = false) {
         charSpanToUndo.classList.add('current');
     } else { 
         if (currentCharIndex >= currentPassageText.length) return; 
+        if (sounds.keyPress) playSound('keyPress', false); 
+
         const expectedChar = currentPassageText[currentCharIndex];
         const charSpan = passageCharsSpans[currentCharIndex];
         if (!charSpan) { return; }
@@ -332,10 +426,17 @@ function processTypedCharacter(typedChar, isBackspace = false) {
 }
 
 function handleKeyDown(event) {
-    if (countdownInProgress) { // Prevent typing during countdown
+    if (countdownInProgress) { 
         event.preventDefault();
         return;
     }
+    if (event.key === "Backspace" && !gameSettings.allowBackspace) {
+        event.preventDefault(); 
+        processTypedCharacter(null, true); 
+        if(typingInput) typingInput.value = ''; 
+        return;
+    }
+    
     if (typingInput && typingInput.disabled || botActive) return; 
     if (event.key === "Tab" || event.key === "Shift" || event.key === "Control" || event.key === "Alt" || event.key === "Meta") return;
     if (event.key !== "Backspace" && event.key.length > 1) return; 
@@ -349,7 +450,7 @@ function handleKeyDown(event) {
     if (!gameActive && event.key === "Backspace") return; 
     if (!gameActive) return; 
 
-    if (event.key === "Backspace") {
+    if (event.key === "Backspace") { 
         event.preventDefault();
         processTypedCharacter(null, true);
         if(typingInput) typingInput.value = ''; 
@@ -388,8 +489,6 @@ function updateLiveHUD() {
     } else { if(accuracyDisplay) accuracyDisplay.textContent = '0'; }
 }
 
-
-// --- Modal Functions ---
 function openResultsModal() {
     if (!resultsModal) return;
     const finalNetWPM = wpmDisplay ? wpmDisplay.textContent : '0';
@@ -454,50 +553,40 @@ function endGame() {
     openResultsModal();
 }
 
-
 async function activateBotMode() {
-    if (gameActive || botActive || countdownInProgress) return; // Prevent bot during countdown
-    await resetGame(false); // MODIFIED: Pass false to skip user countdown
+    if (gameActive || botActive || countdownInProgress) return; 
+    await resetGame(false); 
     gameActive = true;
     botActive = true;
-    if(typingInput) typingInput.disabled = true; // Bot types, so user input is disabled
+    if(typingInput) typingInput.disabled = true; 
     if(startButton) startButton.disabled = true;
     if (botModeButton) {
         botModeButton.textContent = "Bot Running...";
         botModeButton.disabled = true;
     }
     console.log("Bot mode activated.");
-    startTimer(); // Start game timer for bot
+    startTimer(); 
     botTypeNextCharacter();
 }
 
 function botTypeNextCharacter() {
     if (!botActive || !gameActive || currentCharIndex >= currentPassageText.length) {
-        if (botActive && !gameActive) { deactivateBotMode(false); } // If game ended for other reasons
-        else if (botActive && currentCharIndex >= currentPassageText.length) { endGame(); } // Bot finished
+        if (botActive && !gameActive) { deactivateBotMode(false); } 
+        else if (botActive && currentCharIndex >= currentPassageText.length) { endGame(); } 
         return;
     }
     const charToType = currentPassageText[currentCharIndex];
-    processTypedCharacter(charToType, false); // Bot types correctly
-    if (gameActive && botActive && currentCharIndex < currentPassageText.length) { // Check if bot should continue
+    processTypedCharacter(charToType, false); 
+    if (gameActive && botActive && currentCharIndex < currentPassageText.length) { 
         botTimeoutId = setTimeout(botTypeNextCharacter, BOT_TYPING_INTERVAL_MS);
-    } else if (gameActive && botActive && currentCharIndex >= currentPassageText.length) {
-        // This condition is now handled by the primary check inside processTypedCharacter calling endGame
-        // or the check at the beginning of this function.
     }
 }
 
 function deactivateBotMode(calledFromResetOrEnd = false) {
     if (botTimeoutId) clearTimeout(botTimeoutId);
     botActive = false;
-    // Only re-enable buttons if not part of a full game reset/end sequence
-    // which handles button states separately.
     if (!calledFromResetOrEnd && botModeButton) {
         botModeButton.textContent = "Activate Bot";
-        // Game might still be active if user manually stopped bot (not implemented)
-        // Or if game ended, endGame handles buttons.
-        // If called because bot finished, endGame handles it.
-        // This is tricky; button states are best handled by game state transitions.
         botModeButton.disabled = gameActive || countdownInProgress;
     }
     if (!calledFromResetOrEnd && !gameActive && !countdownInProgress) {
@@ -507,30 +596,96 @@ function deactivateBotMode(calledFromResetOrEnd = false) {
     console.log("Bot mode deactivated.");
 }
 
+// --- Settings Modal Functions ---
+function openSettingsModal() {
+    if (!settingsModal) return;
+    if (allowBackspaceToggle) allowBackspaceToggle.checked = gameSettings.allowBackspace;
+    settingsModal.style.display = 'flex';
+    setTimeout(() => settingsModal.classList.add('active'), 10);
+}
+
+function closeSettingsModal() {
+    if (!settingsModal) return;
+    settingsModal.classList.remove('active');
+}
+
 // --- Event Listeners ---
-if(startButton) startButton.addEventListener('click', startGameProcedure);
-if(typingInput) typingInput.addEventListener('keydown', handleKeyDown);
-if (botModeButton) botModeButton.addEventListener('click', activateBotMode);
-if (modalCloseButton) modalCloseButton.addEventListener('click', closeResultsModal);
-if (modalPlayAgainButton) {
-    modalPlayAgainButton.addEventListener('click', () => {
-        closeResultsModal();
-        startGameProcedure(); // This will trigger a new countdown
+if(startButton) {
+    startButton.addEventListener('click', () => {
+        unlockAudio(); 
+        startGameProcedure();
     });
 }
-window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && resultsModal && resultsModal.classList.contains('active')) {
+if(typingInput) {
+    typingInput.addEventListener('keydown', (event) => {
+        unlockAudio(); 
+        handleKeyDown(event);
+    });
+}
+if (botModeButton) {
+    botModeButton.addEventListener('click', () => {
+        unlockAudio(); 
+        activateBotMode();
+    });
+}
+if (modalCloseButton) { // For results modal
+    modalCloseButton.addEventListener('click', closeResultsModal);
+}
+if (modalPlayAgainButton) {
+    modalPlayAgainButton.addEventListener('click', () => {
+        unlockAudio(); 
         closeResultsModal();
-    }
-});
-if (resultsModal) {
-    resultsModal.addEventListener('click', (event) => {
-        if (event.target === resultsModal) {
-            closeResultsModal();
-        }
+        startGameProcedure(); 
     });
 }
 
+// Settings Event Listeners
+if (settingsButton) {
+    settingsButton.addEventListener('click', () => {
+        unlockAudio(); 
+        openSettingsModal();
+    });
+}
+if (settingsModalCloseButton) {
+    settingsModalCloseButton.addEventListener('click', closeSettingsModal);
+}
+if (settingsModal) { 
+    settingsModal.addEventListener('click', (event) => {
+        if (event.target === settingsModal) closeSettingsModal();
+    });
+}
+if (allowBackspaceToggle) {
+    allowBackspaceToggle.addEventListener('change', (event) => {
+        gameSettings.allowBackspace = event.target.checked;
+        saveSettings();
+    });
+}
+if (settingsSaveButton) { 
+    settingsSaveButton.addEventListener('click', () => {
+        // Settings are applied on change, this button just closes.
+        // saveSettings(); // Could save again here if needed, but change listener already does it.
+        closeSettingsModal();
+    });
+}
+
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+        if (resultsModal && resultsModal.classList.contains('active')) {
+            closeResultsModal();
+        } else if (settingsModal && settingsModal.classList.contains('active')) {
+            closeSettingsModal();
+        }
+    }
+});
+if (resultsModal) { // Close on overlay click for results modal
+    resultsModal.addEventListener('click', (event) => {
+        if (event.target === resultsModal) closeResultsModal();
+    });
+}
+
+
 // --- Initialization ---
-startGameProcedure(); // Initial call will trigger reset and then countdown
-console.log("TypeStorm initializing, setting up initial game...");
+loadAudio(); 
+loadSettings();
+initialAppSetup(); 
+console.log("TypeStorm application initialized. Click 'Start New Test' to begin.");

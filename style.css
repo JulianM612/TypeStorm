@@ -22,24 +22,24 @@ body {
     position: relative; 
 }
 
-/* NEW: Countdown Styles */
+/* Countdown Styles */
 #countdown-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(44, 62, 80, 0.85); /* Semi-transparent overlay, same as body bg but darker */
+    background-color: rgba(44, 62, 80, 0.85); 
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 500; /* Below modal (1000), above other content */
-    border-radius: 10px; /* Match app-container */
+    z-index: 500; 
+    border-radius: 10px; 
 }
 
 #countdown-message {
     font-size: 6em;
-    color: #1abc9c; /* Turquoise, same as h1 */
+    color: #1abc9c; 
     font-weight: bold;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     animation: countdown-pulse 1s infinite ease-in-out;
@@ -52,7 +52,7 @@ body {
 /* End Countdown Styles */
 
 h1 {
-    color: #1abc9c; /* Turquoise */
+    color: #1abc9c; 
     margin-bottom: 25px;
     font-size: 2.5em;
 }
@@ -212,6 +212,7 @@ button:disabled {
   animation: shake 0.3s ease-in-out;
 }
 
+/* Modal Overlay Styles (used by results and settings) */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -222,7 +223,7 @@ button:disabled {
     display: flex; 
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 1000; /* High z-index for modals */
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0s linear 0.3s;
@@ -234,6 +235,7 @@ button:disabled {
     transition: opacity 0.3s ease; 
 }
 
+/* Modal Content Styles (shared) */
 .modal-content {
     background-color: #34495e;
     padding: 30px 40px;
@@ -242,7 +244,7 @@ button:disabled {
     text-align: center;
     position: relative;
     width: 90%;
-    max-width: 500px;
+    /* max-width is set individually for results vs settings */
     color: #ecf0f1;
     transform: scale(0.9);
     transition: transform 0.3s ease;
@@ -272,6 +274,11 @@ button:disabled {
 }
 .modal-close-button:hover {
     color: #ecf0f1;
+}
+
+/* Results Modal Specifics */
+#results-modal .modal-content {
+    max-width: 500px; 
 }
 
 .results-grid {
@@ -306,6 +313,7 @@ button:disabled {
     font-size: 1.1em;
 }
 
+/* Loader styles */
 .loader-container { 
     display: flex;
     flex-direction: column;
@@ -333,4 +341,122 @@ button:disabled {
 #passage-display em { 
     font-size: 0.9em;
     color: #bdc3c7;
+}
+
+/* Settings Button Style */
+#settings-button {
+    position: absolute;
+    top: 20px; /* Adjusted for better spacing from edge */
+    right: 20px; /* Adjusted for better spacing from edge */
+    background-color: transparent;
+    color: #bdc3c7;
+    border: 1px solid #46627f;
+    padding: 8px 12px; 
+    font-size: 1.4em; 
+    line-height: 1;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+    z-index: 10; 
+}
+
+#settings-button:hover {
+    color: #ecf0f1;
+    background-color: #4a6572; /* Slightly darker shade */
+    border-color: #7f8c8d;
+}
+
+/* Settings Modal Styles */
+#settings-modal .modal-content { 
+    max-width: 450px; 
+    text-align: left; /* Align text left in settings */
+}
+
+#settings-modal h2 {
+    text-align: center; /* Center the heading though */
+}
+
+.settings-options {
+    margin-bottom: 25px;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #2c3e50; 
+}
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-item label:first-of-type { /* The text label */
+    margin-right: 15px;
+    color: #ecf0f1;
+    flex-grow: 1; /* Allow label to take available space */
+}
+
+/* Toggle Switch Styles */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;  
+  height: 28px; 
+  flex-shrink: 0; /* Prevent switch from shrinking */
+}
+
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #4A6572; 
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px; 
+  width: 20px;  
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #1abc9c; 
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #1abc9c;
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px); 
+}
+
+.slider.round {
+  border-radius: 28px; 
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+#settings-save-button { 
+    font-size: 1em; 
+    padding: 10px 20px;
+    display: block; /* Make it block to center it */
+    margin: 0 auto; /* Center the button */
 }

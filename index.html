@@ -5,12 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TypeStorm - Speed Typing Arena</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Consider adding a font icon library like Font Awesome for the gear icon -->
+    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> -->
 </head>
 <body>
     <div id="app-container">
+        <!-- NEW: Settings Icon Button -->
+        <button id="settings-button" class="icon-button" aria-label="Open Settings">
+            ⚙️ <!-- Simple gear emoji, or use an icon font/SVG -->
+        </button>
+
         <h1>TypeStorm</h1>
 
-        <!-- NEW: Countdown Display Area -->
         <div id="countdown-overlay" style="display: none;">
             <span id="countdown-message">3</span>
         </div>
@@ -69,7 +75,25 @@
                 <button id="modal-play-again-button">Play Again</button>
             </div>
         </div>
-        <!-- END Results Modal HTML -->
+
+        <!-- NEW: Settings Modal HTML -->
+        <div id="settings-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <button class="modal-close-button" id="settings-modal-close-button">×</button>
+                <h2>Settings</h2>
+                <div class="settings-options">
+                    <div class="setting-item">
+                        <label for="allow-backspace-toggle">Allow Backspace to Fix Mistakes:</label>
+                        <label class="switch">
+                            <input type="checkbox" id="allow-backspace-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <!-- Add more settings here in the future -->
+                </div>
+                 <button id="settings-save-button">Close</button> 
+            </div>
+        </div>
 
     </div> <!-- Closing app-container -->
 
